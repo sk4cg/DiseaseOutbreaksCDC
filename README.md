@@ -1,2 +1,2 @@
 # DiseaseOutbreaksCDC
-Data Summary of CDC Disease Outbreaks
+Data Summary of CDC Foodborne Disease Outbreaks
