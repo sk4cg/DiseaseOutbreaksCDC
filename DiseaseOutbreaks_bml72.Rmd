@@ -1,6 +1,6 @@
 ---
 title: "Disease Outbreaks: Ben's Work"
-author: "Benjamin Lee"
+author: "bml72"
 date: "April 6, 2020"
 output:
   html_document:
