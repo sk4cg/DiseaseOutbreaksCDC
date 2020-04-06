@@ -1,0 +1,147 @@
+---
+title: "Disease Outbreaks: Ben's Work"
+author: "Benjamin Lee"
+date: "April 6, 2020"
+output:
+  html_document:
+    code_folding: hide
+    toc: yes
+    toc_depth: 3
+    toc_float: yes
+  pdf_document:
+    toc: yes
+    toc_depth: '3'
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(warning = F, results = 'hide', message = F)
+
+options(scientific=T, digits = 3) 
+```
+
+```{r basic, include=F}
+loadPkg = function(pkg, character.only = FALSE) { 
+  if (!character.only) { pkg <- as.character(substitute(pkg)) }
+  pkg <- ifelse(!character.only, as.character(substitute(pkg)) , pkg)  
+  if (!require(pkg,character.only=T, quietly =T)) {  install.packages(substitute(pkg),dep=T); if(!require(pkg,character.only=T)) stop("Package not found") } 
+}
+loadPkg(knitr)
+
+unloadPkg = function(pkg, character.only = FALSE) { 
+  if(!character.only) { pkg <- as.character(substitute(pkg)) } 
+  search_item <- paste("package", pkg,sep = ":") 
+  while(search_item %in% search()) { detach(search_item, unload = TRUE, character.only = TRUE) } 
+}
+```
+
+## Pre-processing
+
+Here, the data is read in as 'outbreaks.'
+```{r reading in data, include = T}
+outbreaks <- read.csv('outbreaks.csv')
+
+str(outbreaks)
+
+summary(outbreaks)
+```
+
+#### 'NA' Data
+
+After skimming through the data set, I noticed that several predictors contained a large number of missing values. It is important to note that the missing 
+values are denoted as '' instead of 'NA.' The largest occurances of missing values were in Serotype/Genotype (15,212 points, or 79.56% of datatset) and 
+Ingredient (17,243 points, or 90.18% of dataset). Food contained 8,963 missing values (46.88% of dataset). Species and Status also contained a respectable 
+number of missing values (6,619 points, or 34.62% of dataset).
+```{r exploring the data, include = T}
+year_na <- subset(outbreaks, Year == '') # 0 missing values
+
+month_na <- subset(outbreaks, Month == '') # 0 missing values
+
+location_na <- subset(outbreaks, Location == '') # 2,166 missing values (11.32% of dataset)
+
+food_na <- subset(outbreaks, Food == '') # 8,963 missing values (46.88% of dataset)
+
+ingredient_na <- subset(outbreaks, Ingredient == '') # 17,243 missing values (90.18% of dataset)
+
+species_na <- subset(outbreaks, Species == '') # 6,619 missing values (34.62% of dataset)
+
+serotype.genotype_na <- subset(outbreaks, Serotype.Genotype == '') # 15,212 missing values (79.56% of dataset)
+
+status_na <- subset(outbreaks, Status == '') # 6,619 missing values (34.62% of dataset)
+
+illnesses_na <- subset(outbreaks, Illnesses == '') # 0 missing values
+
+hospitalizations_na <- subset(outbreaks, Hospitalizations == '') # 0 missing values
+
+fatalities_na <- subset(outbreaks, Fatalities == '') # 0 missing values
+```
+
+#### Outlier Discovery
+
+After constructing boxplots on the numerical variables (excluding year), outliers were discovered in illnesses, hospitalizations and fatalities.
+
+• Illnesses: with an IQR of 24, there are technically 1,782 outliers. 
+
+• Hospitalizations: with an IQR of 1.5, there are technically 1,325 outliers. 
+
+• Fatalities: with an IQR of 0, there are technically 176 outliers. 
+
+However, these outliers are significant and should not be excluded. Outliers can help explain what species of foodborne illnesses are the 
+most destructive, or what predictors are especially harmful (i.e. State, Location). For example, in the case of illnesses the largest 
+observation was recorded in a multistate area at a restaurant/private home residence/cateering service and came from salmonella. Perhaps 
+the location has something to do with why so many people got sick. Or, salmonella could be an especially dangerous disease. Excluding this 
+outlier could produce harmful effects and cloud judgement on what factors predict the causitive agent in foodborne disease outbreaks. 
+```{r graphs, include = T}
+illnesses_bp <- boxplot(outbreaks$Illnesses, main = "Boxplot of Illnesses", ylab = "Number of Illnesses")
+
+outliers_illnesses <- subset(outbreaks, Illnesses > 43)
+
+hospitalizations_bp <- boxplot(outbreaks$Hospitalizations, main = "Boxplot of Hospitalizations", ylab = "Number of Hospitalizations")
+
+outliers_hospitalizations <- subset(outbreaks, Hospitalizations > 2.5)
+
+fatalities_bp <- boxplot(outbreaks$Fatalities, main = "Boxplot of Fatalities", ylab = "Number of Fatalities")
+
+outliers_fatalities <- subset(outbreaks, Fatalities > 0)
+```
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
