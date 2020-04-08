@@ -1,0 +1,171 @@
+---
+title: "Project2"
+author: "Yuqi Chen"
+date: "2020/4/2"
+output:
+  html_document:
+    code_folding: hide
+    # number_sections: true
+    toc: yes
+    toc_depth: 3
+    toc_float: yes
+  pdf_document:
+    toc: yes
+    toc_depth: '3'
+---
+
+```{r setup, include=FALSE}
+# some of common options (and the defaults) are: 
+# include=T, eval=T, echo=T, results='hide'/'asis',..., collapse=F, warning=T, message=T, error=T, cache=T, fig.width=6, fig.height=4, fig.dim=c(6,4) #inches, fig.align='left'/'center','right', 
+# knitr::opts_chunk$set(warning = F, results = 'markup', message = F)
+knitr::opts_chunk$set(warning = F, results = 'hide', message = F)
+# knitr::opts_chunk$set(include = F)
+# knitr::opts_chunk$set(echo = TRUE)
+options(scientific=T, digits = 3) 
+# options(scipen=9, digits = 3) 
+# ‘scipen’: integer. A penalty to be applied when deciding to print numeric values in fixed or exponential notation.  Positive values bias towards fixed and negative towards scientific notation: fixed notation will be preferred unless it is more than ‘scipen’ digits wider.
+# use scipen=999 to prevent scientific notation at all times
+```
+
+```{r basic, include=F}
+# use this function to conveniently load libraries and work smoothly with knitting
+# can add quietly=T option to the require() function
+loadPkg = function(pkg, character.only = FALSE) { 
+  if (!character.only) { pkg <- as.character(substitute(pkg)) }
+  pkg <- ifelse(!character.only, as.character(substitute(pkg)) , pkg)  
+  if (!require(pkg,character.only=T, quietly =T)) {  install.packages(substitute(pkg),dep=T); if(!require(pkg,character.only=T)) stop("Package not found") } 
+}
+loadPkg(knitr)
+loadPkg(tidyverse)
+loadPkg(ggplot2)
+loadPkg(stringr)
+loadPkg(maps)
+loadPkg(mapdata)
+loadPkg(usmap)
+
+
+# unload/detact package when done using it
+unloadPkg = function(pkg, character.only = FALSE) { 
+  if(!character.only) { pkg <- as.character(substitute(pkg)) } 
+  search_item <- paste("package", pkg,sep = ":") 
+  while(search_item %in% search()) { detach(search_item, unload = TRUE, character.only = TRUE) } 
+}
+```
+
+# Summary of Data
+```{r}
+outbreak <- read.csv("C:/Users/cheny/Desktop/project2/outbreaks.csv")
+summary(outbreak)
+str(outbreak)
+```
+
+
+# EDA
+
+### Illnesses across the states change in different years. 
+
+```{r}
+levels(outbreak$State)[levels(outbreak$State)=="Washington DC"] <- "District of Columbia"
+
+# In 1998
+ill1998 <- outbreak %>% filter(Year == 1998) %>%
+  group_by(State) %>% 
+  summarise(illness = mean(Illnesses, na.rm=T)) %>%
+  left_join(x=statepop, by=c("full"="State")) %>%
+  select(fips, abbr, full, illness)
+plot_usmap(data=ill1998, values="illness", color=1, labels = T) +
+  scale_fill_continuous(name="Illnesses",
+                        low = "yellow", high = "red",
+                        label=scales::comma) + 
+  ggtitle(paste0("Illnesses by state in ", 1998)) +
+  theme(legend.position = "right",
+        plot.title = element_text(hjust = 0.5, size=14))
+
+# In 2004
+ill200 <- outbreak %>% filter(Year == 2004) %>%
+  group_by(State) %>% 
+  summarise(illness = mean(Illnesses, na.rm=T)) %>%
+  left_join(x=statepop, by=c("full"="State")) %>%
+  select(fips, abbr, full, illness)
+plot_usmap(data=ill2004, values="illness", color=1, labels = T) +
+  scale_fill_continuous(name="Illnesses",
+                        low = "yellow", high = "red",
+                        label=scales::comma) + 
+  ggtitle(paste0("Illnesses by state in ", 2004)) +
+  theme(legend.position = "right",
+        plot.title = element_text(hjust = 0.5, size=14))
+
+# In 2010 
+ill2010 <- outbreak %>% filter(Year == 2010) %>%
+  group_by(State) %>% 
+  summarise(illness = mean(Illnesses, na.rm=T)) %>%
+  left_join(x=statepop, by=c("full"="State")) %>%
+  select(fips, abbr, full, illness)
+plot_usmap(data=ill2010, values="illness", color=1, labels = T) +
+  scale_fill_continuous(name="Illnesses",
+                        low = "yellow", high = "red",
+                        label=scales::comma) + 
+  ggtitle(paste0("Illnesses by state in ", 2010)) +
+  theme(legend.position = "right",
+        plot.title = element_text(hjust = 0.5, size=14))
+
+# In 2015
+ill2015 <- outbreak %>% filter(Year == 2015) %>%
+  group_by(State) %>% 
+  summarise(illness = mean(Illnesses, na.rm=T)) %>%
+  left_join(x=statepop, by=c("full"="State")) %>%
+  select(fips, abbr, full, illness)
+plot_usmap(data=ill2015, values="illness", color=1, labels = T) +
+  scale_fill_continuous(name="Illnesses",
+                        low = "yellow", high = "red",
+                        label=scales::comma) + 
+  ggtitle(paste0("Illnesses by state in ", 2015)) +
+  theme(legend.position = "right",
+        plot.title = element_text(hjust = 0.5, size=14))
+
+```
+
+
+```{r}
+# By year
+outbreak %>% group_by(Year) %>%
+  summarise(Cases = sum(Illnesses, na.rm=T)) %>%
+  ggplot(aes(x = Year, y = Cases)) +
+  geom_bar(stat = "identity", fill = "cadetblue3") +
+  geom_text(aes(label = Cases), vjust = -0.4, color = "black",size=3) +
+  ggtitle("Foodborne Illnesses By Year") +
+  theme(panel.grid.major = element_blank(),
+        panel.grid.minor = element_blank(),
+        panel.background = element_rect(fill = "gray96"),
+        axis.title.x=element_blank(),
+        plot.title = element_text(hjust = 0.5, size=14))
+
+# By Month
+outbreak %>% group_by(Month) %>%
+  summarise(Cases = sum(Illnesses, na.rm=T)) %>%
+  ggplot(aes(x = Year, y = Cases)) +
+  geom_bar(stat = "identity", fill = "cadetblue3") +
+  geom_text(aes(label = Cases), vjust = -0.4, color = "black",size=3) +
+  ggtitle("Foodborne Illnesses By Year") +
+  theme(panel.grid.major = element_blank(),
+        panel.grid.minor = element_blank(),
+        panel.background = element_rect(fill = "gray96"),
+        axis.title.x=element_blank(),
+        plot.title = element_text(hjust = 0.5, size=14))
+
+```
+
+
+### Time series plot of illnesses caused by top4 species
+```{r}
+outbreak %>% filter(Species %in% c(
+  "Norovirus genogroup I",
+  "Salmonella enterica",
+  "Norovirus genogroup II",
+  "Clostridium perfringens"
+)) %>%
+  group_by(Year, Species) %>%
+  summarise(Illnesses = sum(Illnesses, na.rm=T)) %>% 
+  ggplot(aes(x=Year, y=Illnesses, lty=Species, col=Species)) + 
+  geom_line()
+```
