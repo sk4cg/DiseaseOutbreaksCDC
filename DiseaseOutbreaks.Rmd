@@ -36,6 +36,13 @@ loadPkg = function(pkg, character.only = FALSE) {
   if (!require(pkg,character.only=T, quietly =T)) {  install.packages(substitute(pkg),dep=T); if(!require(pkg,character.only=T)) stop("Package not found") } 
 }
 loadPkg(knitr)
+loadPkg(tidyverse)
+loadPkg(ggplot2)
+loadPkg(stringr)
+loadPkg(maps)
+loadPkg(mapdata)
+loadPkg(usmap)
+
 
 # unload/detact package when done using it
 unloadPkg = function(pkg, character.only = FALSE) { 
@@ -45,7 +52,210 @@ unloadPkg = function(pkg, character.only = FALSE) {
 }
 ```
 
+
+## Pre-processing
+
+Here, the data is read in as 'outbreaks.'
+```{r reading in data, include = T}
+outbreaks <- read.csv('outbreaks.csv')
+
+str(outbreaks)
+
+summary(outbreaks)
+```
+
+# Summary of Data
 ```{r}
+outbreak <- read.csv("outbreaks.csv")
+summary(outbreak)
+str(outbreak)
+```
+
+#### 'NA' Data
+
+After skimming through the data set, I noticed that several predictors contained a large number of missing values. It is important to note that the missing 
+values are denoted as '' instead of 'NA.' The largest occurances of missing values were in Serotype/Genotype (15,212 points, or 79.56% of datatset) and 
+Ingredient (17,243 points, or 90.18% of dataset). Food contained 8,963 missing values (46.88% of dataset). Species and Status also contained a respectable 
+number of missing values (6,619 points, or 34.62% of dataset).
+```{r exploring the data, include = T}
+year_na <- subset(outbreaks, Year == '') # 0 missing values
+
+month_na <- subset(outbreaks, Month == '') # 0 missing values
+
+location_na <- subset(outbreaks, Location == '') # 2,166 missing values (11.32% of dataset)
+
+food_na <- subset(outbreaks, Food == '') # 8,963 missing values (46.88% of dataset)
+
+ingredient_na <- subset(outbreaks, Ingredient == '') # 17,243 missing values (90.18% of dataset)
+
+species_na <- subset(outbreaks, Species == '') # 6,619 missing values (34.62% of dataset)
+
+serotype.genotype_na <- subset(outbreaks, Serotype.Genotype == '') # 15,212 missing values (79.56% of dataset)
+
+status_na <- subset(outbreaks, Status == '') # 6,619 missing values (34.62% of dataset)
+
+illnesses_na <- subset(outbreaks, Illnesses == '') # 0 missing values
+
+hospitalizations_na <- subset(outbreaks, Hospitalizations == '') # 0 missing values
+
+fatalities_na <- subset(outbreaks, Fatalities == '') # 0 missing values
+```
+
+#### Outlier Discovery
+
+After constructing boxplots on the numerical variables (excluding year), outliers were discovered in illnesses, hospitalizations and fatalities.
+
+• Illnesses: with an IQR of 24, there are technically 1,782 outliers. 
+
+• Hospitalizations: with an IQR of 1.5, there are technically 1,325 outliers. 
+
+• Fatalities: with an IQR of 0, there are technically 176 outliers. 
+
+However, these outliers are significant and should not be excluded. Outliers can help explain what species of foodborne illnesses are the 
+most destructive, or what predictors are especially harmful (i.e. State, Location). For example, in the case of illnesses the largest 
+observation was recorded in a multistate area at a restaurant/private home residence/cateering service and came from salmonella. Perhaps 
+the location has something to do with why so many people got sick. Or, salmonella could be an especially dangerous disease. Excluding this 
+outlier could produce harmful effects and cloud judgement on what factors predict the causitive agent in foodborne disease outbreaks. 
+```{r graphs, include = T}
+illnesses_bp <- boxplot(outbreaks$Illnesses, main = "Boxplot of Illnesses", ylab = "Number of Illnesses")
+
+outliers_illnesses <- subset(outbreaks, Illnesses > 43)
+
+hospitalizations_bp <- boxplot(outbreaks$Hospitalizations, main = "Boxplot of Hospitalizations", ylab = "Number of Hospitalizations")
+
+outliers_hospitalizations <- subset(outbreaks, Hospitalizations > 2.5)
+
+fatalities_bp <- boxplot(outbreaks$Fatalities, main = "Boxplot of Fatalities", ylab = "Number of Fatalities")
+
+outliers_fatalities <- subset(outbreaks, Fatalities > 0)
+```
+
+# EDA
+
+### Illnesses across the states change in different years. 
+
+```{r}
+levels(outbreak$State)[levels(outbreak$State)=="Washington DC"] <- "District of Columbia"
+
+# In 1998
+ill1998 <- outbreak %>% filter(Year == 1998) %>%
+  group_by(State) %>% 
+  summarise(illness = mean(Illnesses, na.rm=T)) %>%
+  left_join(x=statepop, by=c("full"="State")) %>%
+  select(fips, abbr, full, illness)
+plot_usmap(data=ill1998, values="illness", color=1, labels = T) +
+  scale_fill_continuous(name="Illnesses",
+                        low = "yellow", high = "red",
+                        label=scales::comma) + 
+  ggtitle(paste0("Illnesses by state in ", 1998)) +
+  theme(legend.position = "right",
+        plot.title = element_text(hjust = 0.5, size=14))
+
+# In 2004
+ill2004 <- outbreak %>% filter(Year == 2004) %>%
+  group_by(State) %>% 
+  summarise(illness = mean(Illnesses, na.rm=T)) %>%
+  left_join(x=statepop, by=c("full"="State")) %>%
+  select(fips, abbr, full, illness)
+plot_usmap(data=ill2004, values="illness", color=1, labels = T) +
+  scale_fill_continuous(name="Illnesses",
+                        low = "yellow", high = "red",
+                        label=scales::comma) + 
+  ggtitle(paste0("Illnesses by state in ", 2004)) +
+  theme(legend.position = "right",
+        plot.title = element_text(hjust = 0.5, size=14))
+
+# In 2010 
+ill2010 <- outbreak %>% filter(Year == 2010) %>%
+  group_by(State) %>% 
+  summarise(illness = mean(Illnesses, na.rm=T)) %>%
+  left_join(x=statepop, by=c("full"="State")) %>%
+  select(fips, abbr, full, illness)
+plot_usmap(data=ill2010, values="illness", color=1, labels = T) +
+  scale_fill_continuous(name="Illnesses",
+                        low = "yellow", high = "red",
+                        label=scales::comma) + 
+  ggtitle(paste0("Illnesses by state in ", 2010)) +
+  theme(legend.position = "right",
+        plot.title = element_text(hjust = 0.5, size=14))
+
+# In 2015
+ill2015 <- outbreak %>% filter(Year == 2015) %>%
+  group_by(State) %>% 
+  summarise(illness = mean(Illnesses, na.rm=T)) %>%
+  left_join(x=statepop, by=c("full"="State")) %>%
+  select(fips, abbr, full, illness)
+plot_usmap(data=ill2015, values="illness", color=1, labels = T) +
+  scale_fill_continuous(name="Illnesses",
+                        low = "yellow", high = "red",
+                        label=scales::comma) + 
+  ggtitle(paste0("Illnesses by state in ", 2015)) +
+  theme(legend.position = "right",
+        plot.title = element_text(hjust = 0.5, size=14))
+
 ```
 
 
+### The general trend of foodborne illnesses over the years and months
+
+```{r}
+# By year
+outbreak %>% group_by(Year) %>%
+  summarise(Illness = sum(Illnesses, na.rm=T)) %>%
+  ggplot(aes(x = Year, y = Illness)) +
+  geom_bar(stat = "identity", fill = "cadetblue3") +
+  geom_text(aes(label = Illness), vjust = -0.4, color = "black",size=3) +
+  ggtitle("Foodborne Illnesses change By Year") +
+  theme(panel.grid.major = element_blank(),
+        panel.grid.minor = element_blank(),
+        panel.background = element_rect(fill = "gray96"),
+        axis.title.x=element_blank(),
+        plot.title = element_text(hjust = 0.5, size=14))
+
+# By Month
+outbreak_month <- outbreak %>% 
+  group_by(Month) %>%
+  summarise(Illness = sum(Illnesses, na.rm=T)) 
+outbreak_month$Month <- substr(outbreak_month$Month, 1, 3)
+outbreak_month$Month <- factor(outbreak_month$Month, month.abb, ordered=TRUE)
+
+outbreak_month %>% 
+  ggplot(aes(x = Month, y = Illness)) +
+  geom_bar(stat = "identity", fill = "cadetblue3") +
+  geom_text(aes(label = Illness), vjust = -0.4, color = "black",size=3) +
+  ggtitle("Foodborne Illnesses change By Month") +
+  theme(panel.grid.major = element_blank(),
+        panel.grid.minor = element_blank(),
+        panel.background = element_rect(fill = "gray96"),
+        axis.title.x=element_blank(),
+        plot.title = element_text(hjust = 0.5, size=14))
+
+```
+
+
+### Time series plot of illnesses caused by top4 species
+
+```{r}
+outbreak %>% filter(Species %in% c(
+  "Norovirus genogroup I",
+  "Salmonella enterica",
+  "Norovirus genogroup II",
+  "Clostridium perfringens"
+)) %>%
+  group_by(Year, Species) %>%
+  summarise(Illnesses = sum(Illnesses, na.rm=T)) %>% 
+  ggplot(aes(x=Year, y=Illnesses, lty=Species, col=Species)) + 
+  geom_line()
+```
+
+# Model Building
+
+## K-Nearest Neighbors
+
+##Decision Trees
+
+### Basic Decision Tree
+
+### Random Forest
+
+### Extreme Gradient Boost Tree
