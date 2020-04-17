@@ -250,9 +250,256 @@ outbreak %>% filter(Species %in% c(
 
 # Model Building
 
+
+## Preprocessing before model builing 
+
+```{r}
+foodCatXform <- function(val) { 
+  igCase = TRUE
+  if ( ( regexpr("vegetarian",val, ignore.case=igCase)>0 || regexpr("vegan",val, ignore.case=igCase)>0 || regexpr("veggie",val, ignore.case=igCase)>0 || regexpr("salad",val, ignore.case=igCase)>0 || regexpr("meatless",val, ignore.case=igCase)>0 )     && 
+       !( regexpr("nonvegan",val, ignore.case=igCase)>0 || regexpr("chicken",val, ignore.case=igCase)>0 || regexpr("someOtherLikeVegeButNotReallyException",val, ignore.case=igCase)>0 ) ) {
+    return("Vegetarian")
+  } else if ( ( regexpr("chick",val, ignore.case=igCase)>0 || regexpr("chicken",val, ignore.case=igCase)>0 ) && 
+       !( regexpr("chickpea",val, ignore.case=igCase)>0 || regexpr("someOtherChickenException",val, ignore.case=igCase)>0 ) ) { 
+    return("Chicken") 
+  } else if ( ( regexpr("pork",val, ignore.case=igCase)>0 )  ) { 
+    return("Pork") 
+  } else if ( ( regexpr("beef",val, ignore.case=igCase)>0 || regexpr("steak",val, ignore.case=igCase)>0 || regexpr("meat",val, ignore.case=igCase)>0 ) && 
+       !( regexpr("holy cow",val, ignore.case=igCase)>0 || regexpr("beefless",val, ignore.case=igCase)>0 || regexpr("someOtherChickenException",val, ignore.case=igCase)>0 ) ) {
+    return("Beef")
+  } else if ( ( regexpr("fish",val, ignore.case=igCase)>0 || regexpr("tuna",val, ignore.case=igCase)>0 || regexpr("salmon",val, ignore.case=igCase)>0  ) ) {
+    return("Fish")
+  } else if ( ( regexpr("eggs",val, ignore.case=igCase)>0 || regexpr("egg",val, ignore.case=igCase)>0 ) && 
+       !( regexpr("eggless",val, ignore.case=igCase)>0 ) ) {
+    return("Egg")
+  }  else if ( ( regexpr("fruit",val, ignore.case=igCase)>0 || regexpr("strawberry",val, ignore.case=igCase)>0 || regexpr("acai",val, ignore.case=igCase)>0 || regexpr("banana",val, ignore.case=igCase)>0 || regexpr("berries",val, ignore.case=igCase)>0 || regexpr("berry",val, ignore.case=igCase)>0 || regexpr("mango",val, ignore.case=igCase)>0 || regexpr("melon",val, ignore.case=igCase)>0)) {
+    return("Fruit")
+  }  else {
+    return("Others")
+  }
+}
+
+speciesCatXform <- function(val) { 
+  igCase = TRUE
+  if ( ( regexpr("Norovirus",val, ignore.case=igCase)>0 || regexpr("norovirus",val, ignore.case=igCase)>0 ) ) {
+    return("Norovirus")
+  } else if ( ( regexpr("Salmonella",val, ignore.case=igCase)>0 ) ){ 
+    return("Salmonella") 
+  } else if ( ( regexpr("Clostridium perfringens",val, ignore.case=igCase)>0 || regexpr("steak",val, ignore.case=igCase)>0 ) ) {
+    return("Clostridium perfringens")
+  } else if ( ( regexpr("Staphylococcus",val, ignore.case=igCase)>0)  ) {
+    return("Staphylococcus")
+  } else if ( ( regexpr("Escherichia coli",val, ignore.case=igCase)>0)  ) {
+    return("Escherichia coli")
+  } else if ( ( regexpr("Scombroid toxin",val, ignore.case=igCase)>0)  ) {
+    return("Scombroid toxin ")
+  } else if ( ( regexpr("Bacillus cereus",val, ignore.case=igCase)>0)  ) {
+    return("Bacillus cereus")
+  } else if ( ( regexpr("Campylobacter jejuni",val, ignore.case=igCase)>0)  ) {
+    return("Campylobacter jejuni")
+  } else if ( ( regexpr("Ciguatoxin",val, ignore.case=igCase)>0)  ) {
+    return("Ciguatoxin")
+  }     else {
+    return("Others")
+  }
+}
+
+#https://www.plantmaps.com/koppen-climate-classification-map-united-states.php
+#https://en.climate-data.org/
+
+stateCatXform <- function(val) { 
+  igCase = TRUE
+  if( regexpr("Alabama",val, ignore.case=igCase)>0 ) {
+    return("3")
+  } else if ( regexpr("Alaska",val, ignore.case=igCase)>0 ) { 
+    return("4") 
+  } else if ( regexpr("Arizona",val, ignore.case=igCase)>0 ) {
+    return("2")
+  } else if ( ( regexpr("Arkansas",val, ignore.case=igCase)>0)  ) {
+    return("3")
+  } else if ( ( regexpr("California",val, ignore.case=igCase)>0)  ) {
+    return("3")
+  } else if ( ( regexpr("Colorado",val, ignore.case=igCase)>0)  ) {
+    return("2")
+  } else if ( ( regexpr("Connecticut",val, ignore.case=igCase)>0)  ) {
+    return("4")
+  } else if ( ( regexpr("Delaware",val, ignore.case=igCase)>0)  ) {
+    return("3")
+  } else if ( ( regexpr("Florida",val, ignore.case=igCase)>0)  ) {
+    return("3")
+  } else if ( ( regexpr("Georgia",val, ignore.case=igCase)>0)  ) {
+    return("3")
+  } else if ( ( regexpr("Hawaii",val, ignore.case=igCase)>0)  ) {
+    return("1")
+  } else if ( ( regexpr("Idaho",val, ignore.case=igCase)>0)  ) {
+    return("2")
+  } else if ( ( regexpr("Illinois",val, ignore.case=igCase)>0)  ) {
+    return("4")
+  } else if ( ( regexpr("Indiana",val, ignore.case=igCase)>0)  ) {
+    return("4")
+  } else if ( ( regexpr("Iowa",val, ignore.case=igCase)>0)  ) {
+    return("4")
+  } else if ( ( regexpr("Kansas",val, ignore.case=igCase)>0)  ) {
+    return("4")
+  } else if ( ( regexpr("Kentucky",val, ignore.case=igCase)>0)  ) {
+    return("4")
+  } else if ( ( regexpr("Louisiana",val, ignore.case=igCase)>0)  ) {
+    return("3")
+  } else if ( ( regexpr("Maine",val, ignore.case=igCase)>0)  ) {
+    return("4")
+  } else if ( ( regexpr("Maryland",val, ignore.case=igCase)>0)  ) {
+    return("3")
+  } else if ( ( regexpr("Massachusetts",val, ignore.case=igCase)>0)  ) {
+    return("4")
+  } else if ( ( regexpr("Michigan",val, ignore.case=igCase)>0)  ) {
+    return("4")
+  } else if ( ( regexpr("Minnesota",val, ignore.case=igCase)>0)  ) {
+    return("4")
+  } else if ( ( regexpr("Mississippi",val, ignore.case=igCase)>0)  ) {
+    return("3")
+  } else if ( ( regexpr("Missouri",val, ignore.case=igCase)>0)  ) {
+    return("4")
+  } else if ( ( regexpr("Montana",val, ignore.case=igCase)>0)  ) {
+    return("2")
+  } else if ( ( regexpr("Nebraska",val, ignore.case=igCase)>0)  ) {
+    return("4")
+  } else if ( ( regexpr("Nevada",val, ignore.case=igCase)>0)  ) {
+    return("2")
+  } else if ( ( regexpr("New Hampshire",val, ignore.case=igCase)>0)  ) {
+    return("4")
+  } else if ( ( regexpr("New Jersey",val, ignore.case=igCase)>0)  ) {
+    return("4")
+  } else if ( ( regexpr("New Mexico",val, ignore.case=igCase)>0)  ) {
+    return("2")
+  } else if ( ( regexpr("New York",val, ignore.case=igCase)>0)  ) {
+    return("4")
+  } else if ( ( regexpr("North Carolina",val, ignore.case=igCase)>0)  ) {
+    return("3")
+  } else if ( ( regexpr("North Dakota",val, ignore.case=igCase)>0)  ) {
+    return("4")
+  } else if ( ( regexpr("Ohio",val, ignore.case=igCase)>0)  ) {
+    return("4")
+  } else if ( ( regexpr("Oklahoma",val, ignore.case=igCase)>0)  ) {
+    return("3")
+  } else if ( ( regexpr("Oregon",val, ignore.case=igCase)>0)  ) {
+    return("3")
+  } else if ( ( regexpr("Pennsylvania",val, ignore.case=igCase)>0)  ) {
+    return("4")
+  } else if ( ( regexpr("Rhode Island",val, ignore.case=igCase)>0)  ) {
+    return("4")
+  } else if ( ( regexpr("South Carolina",val, ignore.case=igCase)>0)  ) {
+    return("3")
+  } else if ( ( regexpr("South Dakota",val, ignore.case=igCase)>0)  ) {
+    return("4")
+  } else if ( ( regexpr("Tennessee",val, ignore.case=igCase)>0)  ) {
+    return("3")
+  } else if ( ( regexpr("Texas",val, ignore.case=igCase)>0)  ) {
+    return("3")
+  } else if ( ( regexpr("Utah",val, ignore.case=igCase)>0)  ) {
+    return("4")
+  } else if ( ( regexpr("Vermont",val, ignore.case=igCase)>0)  ) {
+    return("4")
+  } else if ( ( regexpr("Virginia",val, ignore.case=igCase)>0)  ) {
+    return("3")
+  } else if ( ( regexpr("Washington",val, ignore.case=igCase)>0)  ) {
+    return("3")
+  } else if ( ( regexpr("West Virginia",val, ignore.case=igCase)>0)  ) {
+    return("4")
+  } else if ( ( regexpr("Wisconsin",val, ignore.case=igCase)>0)  ) {
+    return("4")
+  } else if ( ( regexpr("Wyoming",val, ignore.case=igCase)>0)  ) {
+    return("2")
+  } else if ( ( regexpr("District of Columbia",val, ignore.case=igCase)>0 || regexpr("DC",val, ignore.case=igCase)>0 ) || regexpr("D.C.",val, ignore.case=igCase)>0 ) {
+    return("3")
+  } else if ( ( regexpr("American Samoa",val, ignore.case=igCase)>0) || regexpr("Samoa",val, ignore.case=igCase)>0 ) {
+    return("1")
+  } else if ( ( regexpr("Guam",val, ignore.case=igCase)>0)  ) {
+    return("1")
+  } else if ( ( regexpr("Mariana",val, ignore.case=igCase)>0)  ) {
+    return("1")
+  } else if ( ( regexpr("Puerto Rico",val, ignore.case=igCase)>0) || regexpr("PR",val, ignore.case=igCase)>0 ) {
+    return("1")
+  } else if ( ( regexpr("Virgin Islands",val, ignore.case=igCase)>0) || regexpr("US Virgin Islands",val, ignore.case=igCase)>0 ) {
+    return("1")
+  }     else {
+    return("Others")
+  }
+}
+```
+
+```{r modelpreprocess}
+#str(outbreaks)
+out = outbreaks[c(2:5, 7)]
+str(out)
+
+out$filterFood = sapply(out$Food, FUN = foodCatXform )
+out$filterSpecies = sapply(out$Species, FUN = speciesCatXform )
+out$filterState = sapply(out$State, FUN = stateCatXform )
+#str(out)
+out$filterFood = factor(out$filterFood)
+out$filterSpecies = factor(out$filterSpecies)
+out$filterState = factor(out$filterState)
+
+
+#koppen climate classification for states 
+# https://www.plantmaps.com/koppen-climate-classification-map-united-states.php
+# i'll explain this in the paper later 
+
+
+str(out)
+#summary(out$Food)
+summary(out$filterState)
+summary(out)
+#summary(out$filterFood)
+
+
+
+
+```
+
+
+
 ## K-Nearest Neighbors
 
-##Decision Trees
+```{r}
+outbreaks_predict <- subset(outbreaks, select = c(2, 3, 5, 7))
+str(outbreaks_predict)
+#xkablesummary(outbreaks_predict)
+```
+
+```{r}
+loadPkg(psych)
+pairs.panels(outbreaks_predict, 
+             method = "pearson", # correlation method
+             hist.col = "#8855aa", # set histogram color, can use "#22AFBB", "red",
+             density = TRUE,  # show density plots
+             ellipses = TRUE # show correlation ellipses
+             )
+unloadPkg(psych)
+```
+
+**Train-Test split 3:1**  
+In order to perform KNN analysis, we need to separate the X-variables and the y-labels. (Which should be our y-variable?) Before we separate them out, create a vector/array of 1 and 2 to create a train-test split in the ratio of 3:1. (Set a constant seed value so that we can duplicate the results.) So eventually, you will get the training Xs as a dataframe, training y-label (a vector), as well as the test sets together in four groups. Make sure the train-X and train-y are not mixed up in the ordering during the process. Same for test-X and test-y.  
+
+The variable `type` is the only factor level variable we have, and this will be our y-target. All other x-variables should be scaled, and preferrably centered, to facilitate the calculation of distances in KNN in a more meaningful way.  The 3:1 ratio train-test split makes the train set 75% of the dataset.  
+
+```{r}
+#str(outbreaks_predict)
+#zoutbreaks_predict <- as.data.frame(scale(outbreaks_predict[1:4], center = TRUE, scale = TRUE))
+#We also need to create test and train data sets, we will do this slightly differently by using the sample function. The 2 says create 2 data sets essentially, replacement means we can reset the random sampling across each vector and the probability gives sample the weight of the splits, 2/3 for train, 1/3 for test. 
+#set.seed(314)
+#splitarray <- sample(2, nrow(zpima), replace=TRUE, prob=c(0.75, 0.25))
+#
+#zpima_Xtrain <- zpima[splitarray==1, 1:7] # dataframe
+#zpima_Xtest <- zpima[splitarray==2, 1:7] # dataframe
+#zpima_ytrain <- pima[splitarray==1, 8] #  1-D array, use pima, not zpima
+#zpima_ytest <- pima[splitarray==2, 8] # 1-D array, use pima, not zpima
+```
+
+The train/test sets are prepared, with X and y variables separated as well. We ended up with r length(zpima_ytrain) data point in the train set, and r length(zpima_ytest) data point in the test set.
+
+
+## Decision Trees
 
 ### Basic Decision Tree
 
