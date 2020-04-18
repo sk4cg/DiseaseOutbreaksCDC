@@ -42,6 +42,8 @@ loadPkg(stringr)
 loadPkg(maps)
 loadPkg(mapdata)
 loadPkg(usmap)
+loadPkg(tree)
+loadPkg(caret) 
 
 
 # unload/detact package when done using it
@@ -59,9 +61,9 @@ Here, the data is read in as 'outbreaks.'
 ```{r reading in data, include = T}
 outbreaks <- read.csv('outbreaks.csv')
 
-str(outbreaks)
+#str(outbreaks)
 
-summary(outbreaks)
+#summary(outbreaks)
 ```
 
 # Summary of Data
@@ -457,7 +459,14 @@ summary(out)
 
 ```
 
+```{r finalset, eacho=TRUE}
+# This is the final data set that includes Species (as the response) and Food, State, and Month (as predictors)
 
+model_data = data.frame(out[,c("Month", "filterFood", "filterSpecies", "filterState")])
+
+head(model_data)
+
+```
 
 ## K-Nearest Neighbors
 
@@ -501,8 +510,62 @@ The train/test sets are prepared, with X and y variables separated as well. We e
 
 ## Decision Trees
 
+Decision trees are easily understood and interpreted. They are also easily able to use both quantitative and qualitative variables without having to make dummy variables. Here, three tree types are used to movel the data, increasing in complexity for each type. A basic decision tree was used first, then a Random Forest, which makes use of the bootstrap method. Additionally, the constructed trees in the forest are decorrelated by using only a random sample of the predictors and not all of them. The last tree type used was a boosted tree, which has all the benefits of the Random Forest, but with a small variation in the way in which the bagging of the trees occurs. In the boosted forest, the trees are grown sequentially, using information from previously grown trees. This should result in higher levels of accuracy. 
+
+**The Data Used**
+Ultimately, there were 12 species in the response; Bacillus cereus, Campylobacter jejuni, Ciguatoxin (from Gambierdiscus toxicus), Clostridium perfringens, Escherichia coli, Norovirus, Salmonella, Scombroid toxin (produced by a variety of bacteria growing within fish), Staphylococcus, and the rest grouped as Others. As for the predictor variables, there were 12 levels for months (Jan-Dec), 4 levels set for State (separated by region, as explained above), and 8 levels for the Food; Beef, Chicken, Egg, Fish, Fruit, Pork, Vegetarian, and Other. 
+
+**Train-Test split 3:1** 
+As was done in KNN, the data was split into a 3:1 split for training and testing data. The first 75% of the rows were used for training (14339 observations) and the last 25% was used for testing (4780 observations). However, because decision trees can classify categorical data, all variables were left as factors. 
+
+```{r testtrain, results=FALSE}
+n <- nrow(model_data)
+n_train <- round(0.8 * n) 
+set.seed(1)
+train_indices <- sample(1:n, n_train)
+dt_train <- model_data[train_indices, ]  
+dt_test <- model_data[-train_indices, ]
+
+#smp_size=floor(0.75*nrow(model_data))
+#dt_train=sample(seq_len(nrow(model_data)),size=smp_size)
+
+#dt_test=model_data[-dt_train,]
+#dt_train=model_data[dt_train,]
+```
+
 ### Basic Decision Tree
+
+To start the classification process using a decision tree, a basic decision tree was used. No optimization of parameters was initially done, meaning that all parameters were considered at each split, the size of the forest was at default (500 trees), and no splitting criterion as set. This basic decision tree had an overall accuracy of only 41.7%. Additionally, the sensitivity was 0% for all species except Scombroid toxin producing bacteria and those falling into the "Other" category. The specificty was at 100% for all except those falling into the Scomboid toxin producing bacteria, in which it was 97.6% and those falling into the "Others" category at 5.1%. This indicates that this decision tree does not correctly identify the causative agent (Species) except when the causative agent is a Scombroid toxin producer, in which case it identifies it 78.4% of the time correctly. The combination of low sensitivity and high specificity for most Species, but los specificty for a few, indicates that many of the predictions from this decision tree are getting assigned to the same Species. In lookin at the confusion matrix, you can see that almost every prediction is that of the response "Other". 
+```{r basicdt, results=TRUE}
+
+# basic decision tree with default parameters
+tree.outbreaks = tree(filterSpecies~.,dt_train)
+tree.pred = predict(tree.outbreaks,dt_test,type="class")
+table(tree.pred,dt_test$filterSpecies) # confusion matrix
+#mean(tree.pred==dt_test$filterSpecies) # gives accuracy
+
+
+cm = confusionMatrix( tree.pred, dt_test$filterSpecies)
+print('Overall: ')
+cm$overall
+print('Class: ')
+cm$byClass
+
+
+
+```
+
+Overall, this basic decision tree does not work well, as it is predicting that almost each case of food poisoning is caused by the group "Other". As 13811 of the 19119 observations are categorized into the "Other" category, this is indicative that the data is unbalanced, and explains the lack of predictive capability. 
 
 ### Random Forest
 
 ### Extreme Gradient Boost Tree
+
+```{r XGB, results=TRUE}
+
+
+```
+
+# References
+
+James, G., Witten, D., Hastie, T., & Tibshirani, R. (2013). An introduction to statistical learning: with applications in R. New York, NY: Springer Science.
