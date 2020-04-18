@@ -87,9 +87,9 @@ After constructing boxplots on the numerical variables (excluding year), outlier
 
 However, these outliers are significant and should not be excluded. Outliers can help explain what species of foodborne illnesses are the 
 most destructive, or what predictors are especially harmful (i.e. State, Location). For example, in the case of illnesses the largest 
-observation was recorded in a multistate area at a restaurant/private home residence/cateering service and came from salmonella. Perhaps 
+observation was recorded in a multistate area at a restaurant/private home residence/catering service and came from salmonella. Perhaps 
 the location has something to do with why so many people got sick. Or, salmonella could be an especially dangerous disease. Excluding this 
-outlier could produce harmful effects and cloud judgement on what factors predict the causitive agent in foodborne disease outbreaks. 
+outlier could produce harmful effects and cloud judgement on what factors predict the causative agent in foodborne disease outbreaks. 
 ```{r graphs, include = T}
 illnesses_bp <- boxplot(outbreaks$Illnesses, main = "Boxplot of Illnesses", ylab = "Number of Illnesses")
 
@@ -104,10 +104,14 @@ fatalities_bp <- boxplot(outbreaks$Fatalities, main = "Boxplot of Fatalities", y
 outliers_fatalities <- subset(outbreaks, Fatalities > 0)
 ```
 
+#### Excluding Insignificant Features
 
+Because the majority of values for the `Ingredient`, `Serotype/Genotype` and `Status` features are missing, we are excluding them from our data set. 
+```{r exclude NAs, include = T}
+outbreaks <- outbreaks[-c(6, 8, 9)]
 
-
-
+str(outbreaks)
+```
 
 
 
