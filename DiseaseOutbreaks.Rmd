@@ -28,7 +28,7 @@ options(scientific=T, digits = 3)
 ```
 
 ```{r basic, include=F}
-# use this function to conveniently load libraries and work smoothly with knitting
+# use this function to conveniently load libraries and work smoothly with knittingy
 # can add quietly=T option to the require() function
 loadPkg = function(pkg, character.only = FALSE) { 
   if (!character.only) { pkg <- as.character(substitute(pkg)) }
@@ -264,6 +264,75 @@ outbreak %>% filter(Species %in% c(
 
 ## Preprocessing before model builing 
 
+```{r xkablesummary}
+
+xkabledply = function(modelsmmrytable, title="Table", digits = 4, pos="left", bso="striped") { 
+  #' Combining base::summary, xtable, and kableExtra, to easily display model summary. 
+  #' wrapper for the base::summary function on model objects
+  #' ELo 202004 GWU DATS
+  #' version 1.2
+  #' @param modelsmmrytable This can be a generic table, a model object such as lm(), or the summary of a model object summary(lm()) 
+  #' @param title Title of table. 
+  #' @param digits Number of digits to display
+  #' @param pos Position of table, c("left","center","right") 
+  #' @param bso bootstrap_options = c("basic", "striped", "bordered", "hover", "condensed", "responsive")
+  #' @return HTML table for display
+  #' @examples
+  #' library("xtable")
+  #' library("kableExtra")
+  #' xkabledply( df, title="Table testing", pos="left", bso="hover" )
+  modelsmmrytable %>%
+    xtable() %>% 
+    kable(caption = title, digits = digits) %>%
+    kable_styling(bootstrap_options = bso, full_width = FALSE, position = pos)
+}
+
+xkablesummary = function(df, title="Table: Statistics summary.", digits = 4, pos="left", bso="striped") { 
+  #' Combining base::summary, xtable, and kableExtra, to easily display numeric variable summary of dataframes. 
+  #' ELo 202004 GWU DATS
+  #' version 1.2
+  #' @param df The dataframe.
+  #' @param title Title of table. 
+  #' @param digits Number of digits to display
+  #' @param pos Position of table, c("left","center","right") 
+  #' @param bso bootstrap_options = c("basic", "striped", "bordered", "hover", "condensed", "responsive")
+  #' @return The HTML summary table for display, or for knitr to process into other formats 
+  #' @examples
+  #' xkablesummary( faraway::ozone )
+  #' xkablesummary( ISLR::Hitters, title="Five number summary", pos="left", bso="hover"  )
+  
+  s = summary(df) %>%
+    apply( 2, function(x) stringr::str_remove_all(x,c("Min.\\s*:\\s*","1st Qu.\\s*:\\s*","Median\\s*:\\s*","Mean\\s*:\\s*","3rd Qu.\\s*:\\s*","Max.\\s*:\\s*")) ) %>% # replace all leading words
+    apply( 2, function(x) stringr::str_trim(x, "right")) # trim trailing spaces left
+  
+  colnames(s) <- stringr::str_trim(colnames(s))
+  
+  if ( dim(s)[1] ==6 ) { rownames(s) <- c('Min','Q1','Median','Mean','Q3','Max') 
+  } else if ( dim(s)[1] ==7 ) { rownames(s) <- c('Min','Q1','Median','Mean','Q3','Max','NA') }
+  
+  xkabledply(s, title=title, digits = digits, pos=pos, bso=bso )
+}
+
+xkablevif = function(model, title="VIFs of the model", digits = 3, pos="left", bso="striped") { 
+  #' Combining faraway::vif, xtable, and kableExtra, to easily display numeric summary of VIFs for a model. 
+  #' ELo 202004 GWU DATS
+  #' version 1.2
+  #' @param model The lm or compatible model object.
+  #' @param title Title of table. 
+  #' @param digits Number of digits to display
+  #' @param pos Position of table, c("left","center","right") 
+  #' @param bso bootstrap_options = c("basic", "striped", "bordered", "hover", "condensed", "responsive")
+  #' @return The HTML summary table of the VIFs for a model for display, or for knitr to process into other formats 
+  #' @examples
+  #' xkablevif( lm(Salary~Hits+RBI, data=ISLR::Hitters) )
+  
+  vifs = table( names(model$coefficients)[2:length(model$coefficients)] ) # remove intercept to set column names
+  vifs[] = faraway::vif(model) # set the values
+  xkabledply( vifs, title=title, digits = digits, pos=pos, bso=bso )
+}
+
+```
+
 ```{r}
 foodCatXform <- function(val) { 
   igCase = TRUE
@@ -303,7 +372,7 @@ speciesCatXform <- function(val) {
   } else if ( ( regexpr("Escherichia coli",val, ignore.case=igCase)>0)  ) {
     return("Escherichia coli")
   } else if ( ( regexpr("Scombroid toxin",val, ignore.case=igCase)>0)  ) {
-    return("Scombroid toxin ")
+    return("Scombroid toxin")
   } else if ( ( regexpr("Bacillus cereus",val, ignore.case=igCase)>0)  ) {
     return("Bacillus cereus")
   } else if ( ( regexpr("Campylobacter jejuni",val, ignore.case=igCase)>0)  ) {
@@ -438,6 +507,7 @@ stateCatXform <- function(val) {
 }
 ```
 
+
 ```{r modelpreprocess}
 #str(outbreaks)
 out = outbreaks[c(2:5, 7)]
@@ -480,14 +550,16 @@ head(model_data)
 ## K-Nearest Neighbors
 
 ```{r}
-outbreaks_predict <- subset(outbreaks, select = c(2, 3, 5, 7))
-str(outbreaks_predict)
-#xkablesummary(outbreaks_predict)
+loadPkg(xtable)
+loadPkg(kableExtra)
+loadPkg(stringi)
+str(model_data)
+#xkablesummary(model_data)
 ```
 
 ```{r}
 loadPkg(psych)
-pairs.panels(outbreaks_predict, 
+pairs.panels(model_data, 
              method = "pearson", # correlation method
              hist.col = "#8855aa", # set histogram color, can use "#22AFBB", "red",
              density = TRUE,  # show density plots
@@ -496,25 +568,169 @@ pairs.panels(outbreaks_predict,
 unloadPkg(psych)
 ```
 
-**Train-Test split 3:1**  
-In order to perform KNN analysis, we need to separate the X-variables and the y-labels. (Which should be our y-variable?) Before we separate them out, create a vector/array of 1 and 2 to create a train-test split in the ratio of 3:1. (Set a constant seed value so that we can duplicate the results.) So eventually, you will get the training Xs as a dataframe, training y-label (a vector), as well as the test sets together in four groups. Make sure the train-X and train-y are not mixed up in the ordering during the process. Same for test-X and test-y.  
+
+Train-Test split 3:1
+separate the X-variables and the y-labels
+
+first, create a vector/array of 1 and 2 to create a train-test split in the ratio of 3:1. 
+(Set a constant seed value so that we can duplicate the results.) 
+
+So eventually, you will get the training Xs as a dataframe, training y-label (a vector), as well as the test sets together in four groups. Make sure the train-X and train-y are not mixed up in the ordering during the process. Same for test-X and test-y.  
 
 The variable `type` is the only factor level variable we have, and this will be our y-target. All other x-variables should be scaled, and preferrably centered, to facilitate the calculation of distances in KNN in a more meaningful way.  The 3:1 ratio train-test split makes the train set 75% of the dataset.  
 
+```{r KNNpreprocess}
+num_model <- model_data
+
+loadPkg(plyr)
+num_model$numMonth <- (mapvalues(num_model$Month, 
+          from=c("January","February","March", "April", "May", "June", "July", "August", "September", "October", "November", "December"), 
+          to=c(1,2,3, 4, 5, 6, 7, 8, 9, 10, 11, 12)))
+
+num_model$numFood <- (mapvalues(num_model$filterFood, 
+          from=c("Beef","Chicken","Egg", "Fish", "Fruit", "Others", "Pork", "Vegetarian"), 
+          to=c(1,2,3, 4, 5, 6, 7, 8)))
+
+num_model$numState <- as.numeric(as.character(num_model$filterState))
+
+#num_model$numSpecies <- (mapvalues(num_model$filterSpecies, 
+#          from=c("Bacillus cereus","Campylobacter jejuni","Ciguatoxin", "Ciguatoxin", "Escherichia coli", "Norovirus", "Others", #"Salmonella", "Scombroid toxin", "Staphylococcus"), 
+#          to=c(1,2,3, 4, 5, 6, 7, 8, 9, 10)))
+
+
+#summary(num_model$filterSpecies)
+#head(num_model)
+
+
+num_model$numMonth <- as.numeric(as.character(num_model$numMonth))
+
+num_model$numFood <- as.numeric(as.character(num_model$numFood))
+#num_model$numSpecies <- as.numeric(as.character(num_model$numSpecies))
+num_model$numSpecies <- num_model$filterSpecies
+
+head(num_model)
+
+```
 ```{r}
-#str(outbreaks_predict)
-#zoutbreaks_predict <- as.data.frame(scale(outbreaks_predict[1:4], center = TRUE, scale = TRUE))
+mapped <- subset(num_model, select = c(5, 6, 7, 8))
+mapped <- (na.omit(mapped))
+
+#head(mapped)
+zmapped <- subset(mapped, select = c(1, 2, 3))
+#head(zmapped)
+#nrow((zmapped))
+zmapped
+#species_na <- subset(mapped, numFood == ' ')
+#species_na
+zmapped <- (na.omit(zmapped))
+
+#head(zmapped)
+
+```
+```{r}
+#scale
+zmapped <- as.data.frame(scale(zmapped, center = TRUE, scale = TRUE))
+
 #We also need to create test and train data sets, we will do this slightly differently by using the sample function. The 2 says create 2 data sets essentially, replacement means we can reset the random sampling across each vector and the probability gives sample the weight of the splits, 2/3 for train, 1/3 for test. 
-#set.seed(314)
-#splitarray <- sample(2, nrow(zpima), replace=TRUE, prob=c(0.75, 0.25))
+set.seed(1)
+splitarray <- sample(2, nrow(zmapped), replace=TRUE, prob=c(0.75, 0.25))
 #
-#zpima_Xtrain <- zpima[splitarray==1, 1:7] # dataframe
-#zpima_Xtest <- zpima[splitarray==2, 1:7] # dataframe
-#zpima_ytrain <- pima[splitarray==1, 8] #  1-D array, use pima, not zpima
-#zpima_ytest <- pima[splitarray==2, 8] # 1-D array, use pima, not zpima
+zmapped_Xtrain <- zmapped[splitarray==1, 1:3] # dataframe
+zmapped_Xtest <- zmapped[splitarray==2, 1:3] # dataframe
+zmapped_ytrain <- mapped[splitarray==1, 4] #  1-D array
+zmapped_ytest <- mapped[splitarray==2,4] # 1-D array
+
+length(zmapped_ytrain)
+length(zmapped_ytest)
 ```
 
-The train/test sets are prepared, with X and y variables separated as well. We ended up with r length(zpima_ytrain) data point in the train set, and r length(zpima_ytest) data point in the test set.
+The train/test sets are prepared, with X and y variables separated as well. We ended up with `r length(zmapped_ytrain)` data point in the train set, and `r length(zmapped_ytest)` data point in the test set.
+
+
+
+
+Let us loop through the k-values from 3 to 19, and tabulate the total accuracy as well as other performance metrics using the `caret::confusionMatrix` function.
+
+```{r}
+loadPkg(gmodels)
+loadPkg(FNN)
+loadPkg(caret) 
+
+# create an empty dataframe to store the results from confusion matrices
+confusionMatrixResultDf = data.frame( k=numeric(0), Accuracy= numeric(0), Sensitivity=numeric(0), Specificity=numeric(0), Pos.Pred.Value=numeric(0), Neg.Pred.Value=numeric(0), Precision=numeric(0), Recall=numeric(0), F1=numeric(0), Prevalence=numeric(0), Detection.Rate=numeric(0), Detection.Prevalence=numeric(0), Balanced.Accuracy=numeric(0), row.names = NULL )
+
+for (kval in 23:27) {
+  MappedPredict <- knn(train = zmapped_Xtrain, test = zmapped_Xtest, cl=zmapped_ytrain, k=kval) 
+  mappedXtable <- CrossTable(zmapped_ytest, MappedPredict, prop.chisq = FALSE)
+  print( paste("k = ", kval) )
+  mappedXtable
+  # 
+  cm = confusionMatrix(MappedPredict, reference = zmapped_ytest ) # from caret library
+  # 
+  cmaccu = cm$overall['Accuracy']
+  print( paste("Total Accuracy = ", cmaccu ) )
+  # 
+  cmt = data.frame(k=kval, Accuracy = cmaccu, row.names = NULL ) # initialize a row of the metrics 
+  cmt = cbind( cmt, data.frame( t(cm$byClass) ) ) # the dataframe of the transpose, with k valued added in front
+  confusionMatrixResultDf = rbind(confusionMatrixResultDf, cmt)
+  # print("Other metrics : ")
+}
+```
+
+```{r, results="asis"}
+xkabledply(confusionMatrixResultDf)
+```
+
+```{r}
+chooseK = function(k, train_set, val_set, train_class, val_class){
+  
+  # Build knn with k neighbors considered.
+  set.seed(1)
+  class_knn = knn(train = train_set,    #<- training set cases
+                  test = val_set,       #<- test set cases
+                  cl = train_class,     #<- category for classification
+                  k = k) #,                #<- number of neighbors considered
+                  # use.all = TRUE)       #<- control ties between class assignments
+                                        #   If true, all distances equal to the kth 
+                                        #   largest are included
+  
+  tab = table(class_knn, val_class)
+  
+  # Calculate the accuracy.
+  accu = sum(tab[row(tab) == col(tab)]) / sum(tab)                         
+  cbind(k = k, accuracy = accu)
+}
+
+#zmapped_Xtrain <- zmapped[splitarray==1, 1:3] # dataframe
+#zmapped_Xtest <- zmapped[splitarray==2, 1:3] # dataframe
+#zmapped_ytrain <- mapped[splitarray==1, 4] #  1-D array
+#zmapped_ytest <- mapped[splitarray==2,4] # 1-D array
+
+# The sapply() function plugs in several values into our chooseK function.
+# function(x)[function] allows you to apply a series of numbers
+# to a function without running a for() loop.
+knn_different_k = sapply(seq(23, 27, by = 2),  #<- set k to be odd number from 1 to 21
+                         function(x) chooseK(x, 
+                                             train_set = zmapped_Xtrain,
+                                             val_set = zmapped_Xtest,
+                                             train_class = zmapped_ytrain,
+                                             val_class = zmapped_ytest))
+
+# Reformat the results to graph the results.
+str(knn_different_k)
+knn_different_k = data.frame(k = knn_different_k[1,],
+                             accuracy = knn_different_k[2,])
+
+# Plot accuracy vs. k.
+# install.packages("ggplot2")
+loadPkg(ggplot2)
+
+ggplot(knn_different_k,
+       aes(x = k, y = accuracy)) +
+  geom_line(color = "orange", size = 1.5) +
+  geom_point(size = 3)
+
+```
 
 
 ## Decision Trees
@@ -580,74 +796,7 @@ cm2$byClass
 #it is the same
 
 ```
-```{r xkablesummary}
 
-xkabledply = function(modelsmmrytable, title="Table", digits = 4, pos="left", bso="striped") { 
-  #' Combining base::summary, xtable, and kableExtra, to easily display model summary. 
-  #' wrapper for the base::summary function on model objects
-  #' ELo 202004 GWU DATS
-  #' version 1.2
-  #' @param modelsmmrytable This can be a generic table, a model object such as lm(), or the summary of a model object summary(lm()) 
-  #' @param title Title of table. 
-  #' @param digits Number of digits to display
-  #' @param pos Position of table, c("left","center","right") 
-  #' @param bso bootstrap_options = c("basic", "striped", "bordered", "hover", "condensed", "responsive")
-  #' @return HTML table for display
-  #' @examples
-  #' library("xtable")
-  #' library("kableExtra")
-  #' xkabledply( df, title="Table testing", pos="left", bso="hover" )
-  modelsmmrytable %>%
-    xtable() %>% 
-    kable(caption = title, digits = digits) %>%
-    kable_styling(bootstrap_options = bso, full_width = FALSE, position = pos)
-}
-
-xkablesummary = function(df, title="Table: Statistics summary.", digits = 4, pos="left", bso="striped") { 
-  #' Combining base::summary, xtable, and kableExtra, to easily display numeric variable summary of dataframes. 
-  #' ELo 202004 GWU DATS
-  #' version 1.2
-  #' @param df The dataframe.
-  #' @param title Title of table. 
-  #' @param digits Number of digits to display
-  #' @param pos Position of table, c("left","center","right") 
-  #' @param bso bootstrap_options = c("basic", "striped", "bordered", "hover", "condensed", "responsive")
-  #' @return The HTML summary table for display, or for knitr to process into other formats 
-  #' @examples
-  #' xkablesummary( faraway::ozone )
-  #' xkablesummary( ISLR::Hitters, title="Five number summary", pos="left", bso="hover"  )
-  
-  s = summary(df) %>%
-    apply( 2, function(x) stringr::str_remove_all(x,c("Min.\\s*:\\s*","1st Qu.\\s*:\\s*","Median\\s*:\\s*","Mean\\s*:\\s*","3rd Qu.\\s*:\\s*","Max.\\s*:\\s*")) ) %>% # replace all leading words
-    apply( 2, function(x) stringr::str_trim(x, "right")) # trim trailing spaces left
-  
-  colnames(s) <- stringr::str_trim(colnames(s))
-  
-  if ( dim(s)[1] ==6 ) { rownames(s) <- c('Min','Q1','Median','Mean','Q3','Max') 
-  } else if ( dim(s)[1] ==7 ) { rownames(s) <- c('Min','Q1','Median','Mean','Q3','Max','NA') }
-  
-  xkabledply(s, title=title, digits = digits, pos=pos, bso=bso )
-}
-
-xkablevif = function(model, title="VIFs of the model", digits = 3, pos="left", bso="striped") { 
-  #' Combining faraway::vif, xtable, and kableExtra, to easily display numeric summary of VIFs for a model. 
-  #' ELo 202004 GWU DATS
-  #' version 1.2
-  #' @param model The lm or compatible model object.
-  #' @param title Title of table. 
-  #' @param digits Number of digits to display
-  #' @param pos Position of table, c("left","center","right") 
-  #' @param bso bootstrap_options = c("basic", "striped", "bordered", "hover", "condensed", "responsive")
-  #' @return The HTML summary table of the VIFs for a model for display, or for knitr to process into other formats 
-  #' @examples
-  #' xkablevif( lm(Salary~Hits+RBI, data=ISLR::Hitters) )
-  
-  vifs = table( names(model$coefficients)[2:length(model$coefficients)] ) # remove intercept to set column names
-  vifs[] = faraway::vif(model) # set the values
-  xkabledply( vifs, title=title, digits = digits, pos=pos, bso=bso )
-}
-
-```
 
 
 ```{r nicematrix}
@@ -690,6 +839,26 @@ cm$byClass
 ```
 
 ### Random Forest
+
+```{r, include=FALSE}
+# unloadPkg(???)
+#unloadPkg(knitr)
+##unloadPkg(tidyverse)
+#unloadPkg(ggplot2)
+#unloadPkg(stringr)
+#unloadPkg(maps)
+#unloadPkg(mapdata)
+#unloadPkg(usmap)
+#unloadPkg(tree)
+#unloadPkg(caret) 
+#unloadPkg(readr)
+#unloadPkg(car)
+#unloadPkg(rpart)
+#unloadPkg(rattle)
+#unloadPkg(xtable)
+#unloadPkg(kableExtra)
+#unloadPkg(stringi)
+```
 
 # References
 
