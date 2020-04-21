@@ -735,7 +735,7 @@ ggplot(knn_different_k,
 
 ## Decision Trees
 
-Decision trees are easily understood and interpreted. They are also easily able to use both quantitative and qualitative variables without having to make dummy variables. Here,both a basic decision tree and a Random Forest are used to model the data. A basic decision tree was used first, then a Random Forest, which makes use of the bootstrap method. Additionally, the constructed trees in the forest are decorrelated by using only a random sample of the predictors and not all of them. The last tree type used was a boosted tree, which has all the benefits of the Random Forest, but with a small variation in the way in which the bagging of the trees occurs. (James, 2013)
+Decision trees are easily understood and interpreted. They are also easily able to use both quantitative and qualitative variables without having to make dummy variables. Here, both a basic decision tree and a Random Forest were used to model the data. A basic decision tree was used first, then a Random Forest, which makes use of the bootstrap method. Additionally, the constructed trees in the forest are decorrelated by using only a random sample of the predictors and not all of them. (James, 2013)
 
 **The Data Used**
 Ultimately, there were 12 species in the response; Bacillus cereus, Campylobacter jejuni, Ciguatoxin (from Gambierdiscus toxicus), Clostridium perfringens, Escherichia coli, Norovirus, Salmonella, Scombroid toxin (produced by a variety of bacteria growing within fish), Staphylococcus, and the rest grouped as Others. As for the predictor variables, there were 12 levels for months (Jan-Dec), 4 levels set for State (separated by region, as explained above), and 8 levels for the Food; Beef, Chicken, Egg, Fish, Fruit, Pork, Vegetarian, and Other. 
@@ -771,7 +771,9 @@ print('Class: ')
 cm$byClass
 
 ```
-To start the classification process using a decision tree, a basic decision tree was used. No optimization of parameters was initially done, meaning that all parameters were considered at each split, the size of the forest was at default, and no splitting criterion as set. This basic decision tree had an overall accuracy of only `r round(cm$overall["Accuracy"]*100, digits=2)`%. Additionally, the sensitivity was 0% for all species except Scombroid toxin producing bacteria and those falling into the "Other" category. The sensitivity for The Scombroid toxin producing bacteria was at 80.4%. The specificty was at 100% for all except those falling into the Scomboid toxin producing bacteria, in which it was 97.6% and those falling into the "Others" category at 5.2%. This indicates that this decision tree does not correctly identify the causative agent (Species) except when the causative agent is a Scombroid toxin producer, in which case it identifies it 80.4% of the time correctly. The combination of low sensitivity and high specificity for most Species, but los specificty for a few, indicates that many of the predictions from this decision tree are getting assigned to the same Species. In lookin at the confusion matrix, you can see that almost every prediction is that of the response "Other". 
+To start the classification process using a decision tree, a basic decision tree was used. No optimization of parameters was initially done, meaning that all parameters were considered at each split, the size of the forest was at default, and no splitting criterion was set. This basic decision tree had an overall accuracy of only `r round(cm$overall["Accuracy"]*100, digits=2)`%. Additionally, the sensitivity was 0% for all species except Scombroid toxin producing bacteria and those falling into the "Other" category. The sensitivity for The Scombroid toxin producing bacteria was at 80.4%. What this means is that the algorithm was able to correctly identify the Scombroid toxin producing bacteria 80.4% of the time but did not classify the other bacteria (Bacillus, Campylobacter, etc.) correctly. The specificty was at 100% for all except those falling into the Scomboid toxin producing bacteria, in which it was 97.6% and those falling into the "Others" category at 5.2%. THis means that the algorithm did not incorrectly classify a species into a category that was not meant to go into that category at a rate of 100% for all except Scombroid toxin producing bacteria and the others. 
+
+This indicates that this decision tree does not correctly identify the causative agent (Species) except when the causative agent is a Scombroid toxin producer, in which case it identifies it 80.4% of the time correctly. The combination of low sensitivity and high specificity for most Species, but low specificty for a few, indicates that many of the predictions from this decision tree are getting assigned to the same Species. In looking at the confusion matrix, you can see that almost every prediction is that of the response "Other". 
 
 ```{r}
 summary(tree.outbreaks)
@@ -779,7 +781,7 @@ plot(tree.outbreaks, uniform=TRUE, main="Classification Tree for Species")
 text(tree.outbreaks, use.n=TRUE, all=TRUE, cex=.6)
 ```
 
-When observing the misclassification rate of the trained model, even it has now accuracy of 42.5%. Additionally, as can be seen in the tree displayed above, the only sorting criteria is being used is if it is the group "Other" for food or not. Any disease that is linked in the modified data to any of the categories of food is automatically categorized as caused by Scombroid toxin. Overall, this basic decision tree does not work well, as it is predicting that almost each case of food poisoning is caused by the group "Other". As 13811 of the 19119 observations are categorized into the "Other" category, this is indicative that the data is unbalanced, and explains the lack of predictive capability. 
+As can be seen in the tree displayed above, the only sorting criteria is being used to differentiate any of the species is Food. This occurs at the first split of the tree in which Scombroid toxin producing bacteria are found on the terminal node to the right and the rest to the left. In following the left hand branch, it can be seen that every terminal node classifies the species as Other, regardless of the parameter used. Overall, this basic decision tree does not work well, as it is predicting that almost each case of food poisoning is caused by the group "Other". As 13811 of the 19119 observations are categorized into the "Other" category, this is indicative that the data is unbalanced, and in part explains the lack of predictive capability. 
 
 ```{r}
 ###Use another algorithm to see if the basic tree gets any better
@@ -797,7 +799,9 @@ cm2$byClass
 
 ```
 
+A secondary algorithm whith the same principles and capabilities of the first were compared to determine if one would outperform the other. The function used above is that of tree(). The second function used was rpat(). Both functions returned the same accuracy of `r round(cm$overall["Accuracy"]*100, digits=2)`%. 
 
+The depth of the tree was then changed to detrmine if this could increase the predictive capabilities of the tree. Changing the depth of the tree had no impact whatsoever on the accuracy, sensitivity, or specificity the tree, neither within class or between. 
 
 ```{r nicematrix}
 confusionMatrixResultDf = data.frame( Depth=numeric(0), Accuracy= numeric(0), Sensitivity=numeric(0), Specificity=numeric(0), Pos.Pred.Value=numeric(0), Neg.Pred.Value=numeric(0), Precision=numeric(0), Recall=numeric(0), F1=numeric(0), Prevalence=numeric(0), Detection.Rate=numeric(0), Detection.Prevalence=numeric(0), Balanced.Accuracy=numeric(0), row.names = NULL )
@@ -821,20 +825,23 @@ for (deep in 2:4) {
 xkabledply(confusionMatrixResultDf, "Classification of Food Poisoning Causative Agent")
 ```
 
+Below shows the decision of the tree constructed using the rpart() function. Though the accuracy, sensitivity, and specificyt all stayed the same using the different functions, the structure of the tree was changed a bit. This basic rpart() tree has only one split, which separates those classified as Scombroid toxin producing bacteria and the Others. This is the same split as the tree produced by the tree() function, but without the additional branches and nodes produced by the tree() tree. This tree also gives us easy insight as to which food item separated those into which categories. Any item that was listed as Beef, Chicken, Egg, Fruit, Pork, Vegetarian, or Others was classified into the Others category of Species. Any illness that was said to have been caused by Fish was then categorized as to being caused by a Scrombroid toxin producing bacteria. As Scrombroid toxin is caused by a bacteria that grows in fish, this is actually a separator that worked somewhat well (80.4%). 
 
-```{r optimization, restults=FALSE}
-# basic decision tree with default parameters
-tree.outbreaks = tree(filterSpecies~.,dt_train)
-tree.pred = predict(tree.outbreaks,dt_test,type="class")
-table(tree.pred,dt_test$filterSpecies) # confusion matrix
-mean(tree.pred==dt_test$filterSpecies) # gives accuracy
+```{r plot}
+
+fancyRpartPlot(dt_rout)
+
+```
+
+Pruning of the tree did not appear to increase the accuracy at all. This can be seen as the tree produced is an exact replica as that seen above. To summarize, a basic decision tree does not model the data set well, resulting in an accuracy of 41.3%. 
+
+```{r prune, results=FALSE}
+#prune the tree 
+dt_rout_prune <- prune(dt_rout, cp = dt_rout$cptable[2,"CP"])
 
 
-cm = confusionMatrix(tree.pred, dt_test$filterSpecies)
-print('Overall: ')
-cm$overall
-print('Class: ')
-cm$byClass
+# plot the pruned tree 
+fancyRpartPlot(dt_rout_prune)
 
 ```
 
