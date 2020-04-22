@@ -622,7 +622,7 @@ zmapped <- subset(mapped, select = c(1, 2, 3))
 zmapped
 #species_na <- subset(mapped, numFood == ' ')
 #species_na
-zmapped <- (na.omit(zmapped))
+#zmapped <- (na.omit(zmapped))
 
 #head(zmapped)
 
@@ -651,7 +651,7 @@ The train/test sets are prepared, with X and y variables separated as well. We e
 
 Let us loop through the k-values from 3 to 19, and tabulate the total accuracy as well as other performance metrics using the `caret::confusionMatrix` function.
 
-```{r}
+```{r results="T"}
 loadPkg(gmodels)
 loadPkg(FNN)
 loadPkg(caret) 
@@ -659,7 +659,7 @@ loadPkg(caret)
 # create an empty dataframe to store the results from confusion matrices
 confusionMatrixResultDf = data.frame( k=numeric(0), Accuracy= numeric(0), Sensitivity=numeric(0), Specificity=numeric(0), Pos.Pred.Value=numeric(0), Neg.Pred.Value=numeric(0), Precision=numeric(0), Recall=numeric(0), F1=numeric(0), Prevalence=numeric(0), Detection.Rate=numeric(0), Detection.Prevalence=numeric(0), Balanced.Accuracy=numeric(0), row.names = NULL )
 
-for (kval in 23:27) {
+for (kval in 3:13) {
   MappedPredict <- knn(train = zmapped_Xtrain, test = zmapped_Xtest, cl=zmapped_ytrain, k=kval) 
   mappedXtable <- CrossTable(zmapped_ytest, MappedPredict, prop.chisq = FALSE)
   print( paste("k = ", kval) )
@@ -682,6 +682,10 @@ xkabledply(confusionMatrixResultDf)
 ```
 
 ```{r}
+#zpima_Xtrain <- zpima[splitarray==1, 1:7] # dataframe
+#zpima_Xtest <- zpima[splitarray==2, 1:7] # dataframe
+#zpima_ytrain <- pima[splitarray==1, 8] #  1-D array, use pima, not zpima
+#zpima_ytest <- pima[splitarray==2, 8] # 1-D array, use pima, not zpima
 chooseK = function(k, train_set, val_set, train_class, val_class){
   
   # Build knn with k neighbors considered.
@@ -701,15 +705,10 @@ chooseK = function(k, train_set, val_set, train_class, val_class){
   cbind(k = k, accuracy = accu)
 }
 
-#zmapped_Xtrain <- zmapped[splitarray==1, 1:3] # dataframe
-#zmapped_Xtest <- zmapped[splitarray==2, 1:3] # dataframe
-#zmapped_ytrain <- mapped[splitarray==1, 4] #  1-D array
-#zmapped_ytest <- mapped[splitarray==2,4] # 1-D array
-
 # The sapply() function plugs in several values into our chooseK function.
 # function(x)[function] allows you to apply a series of numbers
 # to a function without running a for() loop.
-knn_different_k = sapply(seq(23, 27, by = 2),  #<- set k to be odd number from 1 to 21
+knn_different_k = sapply(seq(1, 21, by = 2),  #<- set k to be odd number from 1 to 21
                          function(x) chooseK(x, 
                                              train_set = zmapped_Xtrain,
                                              val_set = zmapped_Xtest,
@@ -733,6 +732,21 @@ ggplot(knn_different_k,
 ```
 
 
+```{r}
+x <- knn(train = zmapped_Xtrain, test = zmapped_Xtest, cl=zmapped_ytrain, k=5)
+x6 <- knn(train = zmapped_Xtrain, test = zmapped_Xtest, cl=zmapped_ytrain, k=6)
+
+#summary(x)
+summary(zmapped_ytrain)
+#x6 <- factor(x6, levels=c("Bacillus cereus","Campylobacter jejuni","Ciguatoxin", "Ciguatoxin", "Escherichia coli", "Norovirus", "Others", "Salmonella", "Scombroid toxin", "Staphylococcus"))
+
+#summary(zmapped_ytest)
+m <- mean(x == zmapped_ytest)
+m
+#zmapped_ytest
+#c("Bacillus cereus","Campylobacter jejuni","Ciguatoxin", "Ciguatoxin", "Escherichia coli", "Norovirus", "Others", #"Salmonella", "Scombroid toxin", "Staphylococcus")
+
+```
 ## Decision Trees
 
 Decision trees are easily understood and interpreted. They are also easily able to use both quantitative and qualitative variables without having to make dummy variables. Here, both a basic decision tree and a Random Forest were used to model the data. A basic decision tree was used first, then a Random Forest, which makes use of the bootstrap method. Additionally, the constructed trees in the forest are decorrelated by using only a random sample of the predictors and not all of them. (James, 2013)
