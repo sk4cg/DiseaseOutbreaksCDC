@@ -860,6 +860,30 @@ fancyRpartPlot(dt_rout_prune)
 ```
 
 ### Random Forest
+```{r rf, include = T}
+loadPkg('randomForest')
+
+set.seed(100)
+
+# Training conducted using 3:1 training to testing ratio (without replacement)
+train <- sample(nrow(model_data), 0.75*nrow(model_data), replace = FALSE)
+
+train_set <- model_data[train,]
+valid_set <- model_data[-train,]
+
+summary(valid_set)
+# summary(train_set)
+
+rf <- randomForest(filterSpecies ~., data = train_set, mtry = 1, importance = TRUE)
+
+rf
+
+pred = predict(rf, newdata=valid_set[, !(colnames(valid_set) == "filterSpecies")])
+
+# cm = table(valid_set[, "filterSpecies"], pred)
+
+# cm
+```
 
 ```{r, include=FALSE}
 # unloadPkg(???)
