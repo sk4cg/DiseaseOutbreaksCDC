@@ -615,16 +615,9 @@ head(num_model)
 mapped <- subset(num_model, select = c(5, 6, 7, 8))
 mapped <- (na.omit(mapped))
 
-#head(mapped)
 zmapped <- subset(mapped, select = c(1, 2, 3))
-#head(zmapped)
-#nrow((zmapped))
 zmapped
-#species_na <- subset(mapped, numFood == ' ')
-#species_na
-#zmapped <- (na.omit(zmapped))
 
-#head(zmapped)
 
 ```
 ```{r}
