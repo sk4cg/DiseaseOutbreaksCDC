@@ -841,7 +841,7 @@ dt_rout_prune <- prune(dt_rout, cp = dt_rout$cptable[2,"CP"])
 
 
 # plot the pruned tree 
-fancyRpartPlot(dt_rout_prune)
+#fancyRpartPlot(dt_rout_prune)
 
 ```
 
@@ -866,6 +866,11 @@ fancyRpartPlot(dt_rout_prune)
 #unloadPkg(kableExtra)
 #unloadPkg(stringi)
 ```
+
+# Limitations of the Data
+There were a variety of factors associated with the low accuracy of the models. First and foremost, there were simply too many levels to each variable. Attempting to group the Food, States, and Species was a difficult task. Each pathogen is unique and grouping them into only a few categories greatly increased error. The same occurred with the states. The states were grouped by climate, which is associated with the types of food outbreaks that occur. However, climate AND location (west coast versus east coast, etc.) are important when indicating whether it is likely to be one causative agent or another. Grouping the food by category was very difficult. There were thousands of variations of foods, as they were specific to the individual. Though the food is very important in determining causative agent (i.e. Salmonella grows on chicken), the environment of the food is also important. For instance, though there isn't anything specific in potato salad that would clue you in to food poisoning, the fact that potato salad is often eaten at picnics where people leave food out for hours is a major variable. Additionally, Staphylococcus aureus and Shigella are both organisms that come from preparing food with dirty hands. So, food that is often prepared by hand, and not just the fact that it may be fish or chicken, is imporant. Because of these reasons, the food grouping made it very difficult to group the data. Increasing the number of groups to the maximum number of levels allows (32) or to use a different method of grouping may have increased the accuracy. 
+
+# Conclusion
 
 # References
 
