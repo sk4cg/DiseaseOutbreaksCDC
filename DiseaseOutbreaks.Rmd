@@ -63,6 +63,74 @@ unloadPkg = function(pkg, character.only = FALSE) {
 }
 ```
 
+```{r xkablesummary}
+
+xkabledply = function(modelsmmrytable, title="Table", digits = 4, pos="left", bso="striped") { 
+  #' Combining base::summary, xtable, and kableExtra, to easily display model summary. 
+  #' wrapper for the base::summary function on model objects
+  #' ELo 202004 GWU DATS
+  #' version 1.2
+  #' @param modelsmmrytable This can be a generic table, a model object such as lm(), or the summary of a model object summary(lm()) 
+  #' @param title Title of table. 
+  #' @param digits Number of digits to display
+  #' @param pos Position of table, c("left","center","right") 
+  #' @param bso bootstrap_options = c("basic", "striped", "bordered", "hover", "condensed", "responsive")
+  #' @return HTML table for display
+  #' @examples
+  #' library("xtable")
+  #' library("kableExtra")
+  #' xkabledply( df, title="Table testing", pos="left", bso="hover" )
+  modelsmmrytable %>%
+    xtable() %>% 
+    kable(caption = title, digits = digits) %>%
+    kable_styling(bootstrap_options = bso, full_width = FALSE, position = pos)
+}
+
+xkablesummary = function(df, title="Table: Statistics summary.", digits = 4, pos="left", bso="striped") { 
+  #' Combining base::summary, xtable, and kableExtra, to easily display numeric variable summary of dataframes. 
+  #' ELo 202004 GWU DATS
+  #' version 1.2
+  #' @param df The dataframe.
+  #' @param title Title of table. 
+  #' @param digits Number of digits to display
+  #' @param pos Position of table, c("left","center","right") 
+  #' @param bso bootstrap_options = c("basic", "striped", "bordered", "hover", "condensed", "responsive")
+  #' @return The HTML summary table for display, or for knitr to process into other formats 
+  #' @examples
+  #' xkablesummary( faraway::ozone )
+  #' xkablesummary( ISLR::Hitters, title="Five number summary", pos="left", bso="hover"  )
+  
+  s = summary(df) %>%
+    apply( 2, function(x) stringr::str_remove_all(x,c("Min.\\s*:\\s*","1st Qu.\\s*:\\s*","Median\\s*:\\s*","Mean\\s*:\\s*","3rd Qu.\\s*:\\s*","Max.\\s*:\\s*")) ) %>% # replace all leading words
+    apply( 2, function(x) stringr::str_trim(x, "right")) # trim trailing spaces left
+  
+  colnames(s) <- stringr::str_trim(colnames(s))
+  
+  if ( dim(s)[1] ==6 ) { rownames(s) <- c('Min','Q1','Median','Mean','Q3','Max') 
+  } else if ( dim(s)[1] ==7 ) { rownames(s) <- c('Min','Q1','Median','Mean','Q3','Max','NA') }
+  
+  xkabledply(s, title=title, digits = digits, pos=pos, bso=bso )
+}
+
+xkablevif = function(model, title="VIFs of the model", digits = 3, pos="left", bso="striped") { 
+  #' Combining faraway::vif, xtable, and kableExtra, to easily display numeric summary of VIFs for a model. 
+  #' ELo 202004 GWU DATS
+  #' version 1.2
+  #' @param model The lm or compatible model object.
+  #' @param title Title of table. 
+  #' @param digits Number of digits to display
+  #' @param pos Position of table, c("left","center","right") 
+  #' @param bso bootstrap_options = c("basic", "striped", "bordered", "hover", "condensed", "responsive")
+  #' @return The HTML summary table of the VIFs for a model for display, or for knitr to process into other formats 
+  #' @examples
+  #' xkablevif( lm(Salary~Hits+RBI, data=ISLR::Hitters) )
+  
+  vifs = table( names(model$coefficients)[2:length(model$coefficients)] ) # remove intercept to set column names
+  vifs[] = faraway::vif(model) # set the values
+  xkabledply( vifs, title=title, digits = digits, pos=pos, bso=bso )
+}
+
+```
 
 ## Pre-processing
 
@@ -84,7 +152,7 @@ str(outbreak)
 
 #### 'NA' Data
 
-After skimming through the data set, I noticed that several predictors contained a large number of missing values. It is important to note that the missing 
+After skimming through the data set, We noticed that several predictors contained a large number of missing values. It is important to note that the missing 
 values are denoted as '' instead of 'NA.' The largest occurances of missing values were in Serotype/Genotype (15,212 points, or 79.56% of datatset) and 
 Ingredient (17,243 points, or 90.18% of dataset). Food contained 8,963 missing values (46.88% of dataset). Species and Status also contained a respectable 
 number of missing values (6,619 points, or 34.62% of dataset).
@@ -264,74 +332,11 @@ outbreak %>% filter(Species %in% c(
 
 ## Preprocessing before model builing 
 
-```{r xkablesummary}
+Before building our models, we needed to do some additional preprocessing to our data in order to get it ready for building informative models. We decided that we would focus on 3 different predictor variables: `Month`, `Food`, and `State`. And hopefully these features would considerably aid us in training models to predict our target variable, `Species`.  At this stage in our analysis the dataset, provided us with `Month` as a factor variable with 12 levels, `State` as a factor variable with 55 levels (it included DC and US territories in addition to the 50 states), `Food` as a ctorfa variable with 3128 levels, and `Species` as a factor variable with 202 levels. We believe that the datapoints for Food and Species contained hand entered variable (rather than choosing from a pre-existing list) which opened it up to a lot of variability in responses and would make it harder for the models to classify with so many levels. Additionally, in order to create the decision trees there was a limit of 32 levels and the as is data did not fit those requirements. Thus, we needed to filter down each variable that had a high amount of levels and filter it into more manageable distinctions. While we do recognize that this added bias to our modells and especially disadvantaged the variables that were less common in our dataset (as they were put in the "Other" category), we were hoping it would still provide us with meaningful models that were able to classify Species. 
 
-xkabledply = function(modelsmmrytable, title="Table", digits = 4, pos="left", bso="striped") { 
-  #' Combining base::summary, xtable, and kableExtra, to easily display model summary. 
-  #' wrapper for the base::summary function on model objects
-  #' ELo 202004 GWU DATS
-  #' version 1.2
-  #' @param modelsmmrytable This can be a generic table, a model object such as lm(), or the summary of a model object summary(lm()) 
-  #' @param title Title of table. 
-  #' @param digits Number of digits to display
-  #' @param pos Position of table, c("left","center","right") 
-  #' @param bso bootstrap_options = c("basic", "striped", "bordered", "hover", "condensed", "responsive")
-  #' @return HTML table for display
-  #' @examples
-  #' library("xtable")
-  #' library("kableExtra")
-  #' xkabledply( df, title="Table testing", pos="left", bso="hover" )
-  modelsmmrytable %>%
-    xtable() %>% 
-    kable(caption = title, digits = digits) %>%
-    kable_styling(bootstrap_options = bso, full_width = FALSE, position = pos)
-}
+I chose not to filter down the `Month` variable as I felt it was not necessary and that it would be more informative to keep it as is than to make up a reasoning on how to group them. To filter the variable I used a function that checked each data point in a given feature for different regex expressions that I specified. For instance for the Food variable I checked for data points that contained "fish", "salmon", or "tuna" and if they contained any of those regex expressions they would be classified into the "Fish" level, and so on. For Food I chose overarchign different types of food such as chicken, vegetarian, prok, beef etc. For the Species variable I filtered the levels by choosing the most prevalent species in the dataset and choosign those as levels, and the rest were classified into the Other category. And for the States, I used the Koppen climate classification which for the US and its territories, encompasses 4 different climate levels: Tropical, Arid, Temperate, and Polar  
 
-xkablesummary = function(df, title="Table: Statistics summary.", digits = 4, pos="left", bso="striped") { 
-  #' Combining base::summary, xtable, and kableExtra, to easily display numeric variable summary of dataframes. 
-  #' ELo 202004 GWU DATS
-  #' version 1.2
-  #' @param df The dataframe.
-  #' @param title Title of table. 
-  #' @param digits Number of digits to display
-  #' @param pos Position of table, c("left","center","right") 
-  #' @param bso bootstrap_options = c("basic", "striped", "bordered", "hover", "condensed", "responsive")
-  #' @return The HTML summary table for display, or for knitr to process into other formats 
-  #' @examples
-  #' xkablesummary( faraway::ozone )
-  #' xkablesummary( ISLR::Hitters, title="Five number summary", pos="left", bso="hover"  )
-  
-  s = summary(df) %>%
-    apply( 2, function(x) stringr::str_remove_all(x,c("Min.\\s*:\\s*","1st Qu.\\s*:\\s*","Median\\s*:\\s*","Mean\\s*:\\s*","3rd Qu.\\s*:\\s*","Max.\\s*:\\s*")) ) %>% # replace all leading words
-    apply( 2, function(x) stringr::str_trim(x, "right")) # trim trailing spaces left
-  
-  colnames(s) <- stringr::str_trim(colnames(s))
-  
-  if ( dim(s)[1] ==6 ) { rownames(s) <- c('Min','Q1','Median','Mean','Q3','Max') 
-  } else if ( dim(s)[1] ==7 ) { rownames(s) <- c('Min','Q1','Median','Mean','Q3','Max','NA') }
-  
-  xkabledply(s, title=title, digits = digits, pos=pos, bso=bso )
-}
 
-xkablevif = function(model, title="VIFs of the model", digits = 3, pos="left", bso="striped") { 
-  #' Combining faraway::vif, xtable, and kableExtra, to easily display numeric summary of VIFs for a model. 
-  #' ELo 202004 GWU DATS
-  #' version 1.2
-  #' @param model The lm or compatible model object.
-  #' @param title Title of table. 
-  #' @param digits Number of digits to display
-  #' @param pos Position of table, c("left","center","right") 
-  #' @param bso bootstrap_options = c("basic", "striped", "bordered", "hover", "condensed", "responsive")
-  #' @return The HTML summary table of the VIFs for a model for display, or for knitr to process into other formats 
-  #' @examples
-  #' xkablevif( lm(Salary~Hits+RBI, data=ISLR::Hitters) )
-  
-  vifs = table( names(model$coefficients)[2:length(model$coefficients)] ) # remove intercept to set column names
-  vifs[] = faraway::vif(model) # set the values
-  xkabledply( vifs, title=title, digits = digits, pos=pos, bso=bso )
-}
-
-```
 
 ```{r}
 foodCatXform <- function(val) { 
@@ -900,4 +905,8 @@ pred = predict(rf, newdata=valid_set[, !(colnames(valid_set) == "filterSpecies")
 
 # References
 
+Climate Data For Cities Worldwide. Climate-Data.org. https://en.climate-data.org/
+
 James, G., Witten, D., Hastie, T., & Tibshirani, R. (2013). An introduction to statistical learning: with applications in R. New York, NY: Springer Science.
+
+Koppen Climate Map of the United States. Plant Maps. https://www.plantmaps.com/koppen-climate-classification-map-united-states.php
