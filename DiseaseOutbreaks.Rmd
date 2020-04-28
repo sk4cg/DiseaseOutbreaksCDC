@@ -330,12 +330,13 @@ outbreak %>% filter(Species %in% c(
 # Model Building
 
 
-## Preprocessing before model builing 
+## Preprocessing before model building 
 
-Before building our models, we needed to do some additional preprocessing to our data in order to get it ready for building informative models. We decided that we would focus on 3 different predictor variables: `Month`, `Food`, and `State`. And hopefully these features would considerably aid us in training models to predict our target variable, `Species`.  At this stage in our analysis the dataset, provided us with `Month` as a factor variable with 12 levels, `State` as a factor variable with 55 levels (it included DC and US territories in addition to the 50 states), `Food` as a ctorfa variable with 3128 levels, and `Species` as a factor variable with 202 levels. We believe that the datapoints for Food and Species contained hand entered variable (rather than choosing from a pre-existing list) which opened it up to a lot of variability in responses and would make it harder for the models to classify with so many levels. Additionally, in order to create the decision trees there was a limit of 32 levels and the as is data did not fit those requirements. Thus, we needed to filter down each variable that had a high amount of levels and filter it into more manageable distinctions. While we do recognize that this added bias to our modells and especially disadvantaged the variables that were less common in our dataset (as they were put in the "Other" category), we were hoping it would still provide us with meaningful models that were able to classify Species. 
+Before building our models, we needed to do some additional preprocessing to our data in order to get it ready for building informative models. We decided that we would focus on 3 different predictor variables: `Month`, `Food`, and `State`. And hopefully these features would considerably aid us in training models to predict our target variable, `Species`.  At this stage in our analysis the dataset, provided us with `Month`  as a factor variable with 12 levels, `State` as a factor variable with 55 levels (it included DC and US territories in addition to the 50 states), `Food` as a factor variable with 3128 levels, and `Species` as a factor variable with 202 levels. We believe that the datapoints for Food and Species contained hand entered variable (rather than choosing from a pre-existing list) which opened it up to a lot of variability in responses and would make it harder for the models to classify with so many levels. Additionally, in order to create the decision trees there was a limit of 32 levels and the as is data did not fit those requirements. Thus, we needed to filter down each variable that had a high amount of levels and filter it into more manageable distinctions. While we do recognize that this added bias to our models and especially disadvantaged the variables that were less common in our dataset (as they were put in the "Other" category), we were hoping it would still provide us with meaningful models that were able to classify Species. 
 
-I chose not to filter down the `Month` variable as I felt it was not necessary and that it would be more informative to keep it as is than to make up a reasoning on how to group them. To filter the variable I used a function that checked each data point in a given feature for different regex expressions that I specified. For instance for the Food variable I checked for data points that contained "fish", "salmon", or "tuna" and if they contained any of those regex expressions they would be classified into the "Fish" level, and so on. For Food I chose overarchign different types of food such as chicken, vegetarian, prok, beef etc. For the Species variable I filtered the levels by choosing the most prevalent species in the dataset and choosign those as levels, and the rest were classified into the Other category. And for the States, I used the Koppen climate classification which for the US and its territories, encompasses 4 different climate levels: Tropical, Arid, Temperate, and Polar  
+I chose not to filter down the `Month` variable as I felt it was not necessary and that it would be more informative to keep it as is than to make up a reasoning on how to group them. To filter the variable I used a function that checked each data point in a given feature for different regex expressions that I specified. For instance for the Food variable I checked for data points that contained "fish", "salmon", or "tuna" and if they contained any of those regex expressions they would be classified into the "Fish" level, and so on. For Food I chose overarching categories of different types of food such as chicken, vegetarian, pork, beef etc. For the Species variable I filtered the levels by choosing the most prevalent species in the dataset and choosng those as levels, and the rest were classified into the Other category. And for the States, I used the Koppen climate classification which for the US and its territories, encompasses 4 different climate levels: Tropical, Dry (Arid and Semiarid), Temperate (Mesothermal), and Continental (Microthermal). Some states do have high variation in climate regions, and for those states I chose the level type that encompassed the largest percentage (majority) of land in the state. I also included an "other" level to catch any mis-entered data. 
 
+After preprocessing and filtering the data, the `Food` variable had 8 levels, the `Species` variable had 10 levels, the `State` variable had 5 levels, and the `Month` variable which was not altered had 12 levels. 
 
 
 ```{r}
@@ -514,9 +515,8 @@ stateCatXform <- function(val) {
 
 
 ```{r modelpreprocess}
-#str(outbreaks)
 out = outbreaks[c(2:5, 7)]
-str(out)
+#str(out)
 
 out$filterFood = sapply(out$Food, FUN = foodCatXform )
 out$filterSpecies = sapply(out$Species, FUN = speciesCatXform )
@@ -526,24 +526,15 @@ out$filterFood = factor(out$filterFood)
 out$filterSpecies = factor(out$filterSpecies)
 out$filterState = factor(out$filterState)
 
-
 #koppen climate classification for states 
 # https://www.plantmaps.com/koppen-climate-classification-map-united-states.php
-# i'll explain this in the paper later 
 
-
-str(out)
-#summary(out$Food)
-summary(out$filterState)
-summary(out)
-#summary(out$filterFood)
-
-
-
+#str(out)
+#summary(out)
 
 ```
 
-```{r finalset, eacho=TRUE}
+```{r finalset, echo=TRUE}
 # This is the final data set that includes Species (as the response) and Food, State, and Month (as predictors)
 
 model_data = data.frame(out[,c("Month", "filterFood", "filterSpecies", "filterState")])
@@ -558,9 +549,11 @@ head(model_data)
 loadPkg(xtable)
 loadPkg(kableExtra)
 loadPkg(stringi)
-str(model_data)
+#str(model_data)
 #xkablesummary(model_data)
 ```
+
+We can see from the histograms below that each of the feature variable are not normally distributed. The Species variable has a left skew. 
 
 ```{r}
 loadPkg(psych)
@@ -574,20 +567,11 @@ unloadPkg(psych)
 ```
 
 
-Train-Test split 3:1
-separate the X-variables and the y-labels
-
-first, create a vector/array of 1 and 2 to create a train-test split in the ratio of 3:1. 
-(Set a constant seed value so that we can duplicate the results.) 
-
-So eventually, you will get the training Xs as a dataframe, training y-label (a vector), as well as the test sets together in four groups. Make sure the train-X and train-y are not mixed up in the ordering during the process. Same for test-X and test-y.  
-
-The variable `type` is the only factor level variable we have, and this will be our y-target. All other x-variables should be scaled, and preferrably centered, to facilitate the calculation of distances in KNN in a more meaningful way.  The 3:1 ratio train-test split makes the train set 75% of the dataset.  
-
+First, I needed to do some additional preprocessing before executing KNN. The R KNN function requires numerical data, and since our feature variables were all categorical at this point, I chose to map each factor level to a number and then run KNN. It was not necessary to map the Species variable as it was the target variable. 
 ```{r KNNpreprocess}
 num_model <- model_data
-
 loadPkg(plyr)
+
 num_model$numMonth <- (mapvalues(num_model$Month, 
           from=c("January","February","March", "April", "May", "June", "July", "August", "September", "October", "November", "December"), 
           to=c(1,2,3, 4, 5, 6, 7, 8, 9, 10, 11, 12)))
@@ -601,14 +585,7 @@ num_model$numState <- as.numeric(as.character(num_model$filterState))
 #num_model$numSpecies <- (mapvalues(num_model$filterSpecies, 
 #          from=c("Bacillus cereus","Campylobacter jejuni","Ciguatoxin", "Ciguatoxin", "Escherichia coli", "Norovirus", "Others", #"Salmonella", "Scombroid toxin", "Staphylococcus"), 
 #          to=c(1,2,3, 4, 5, 6, 7, 8, 9, 10)))
-
-
-#summary(num_model$filterSpecies)
-#head(num_model)
-
-
 num_model$numMonth <- as.numeric(as.character(num_model$numMonth))
-
 num_model$numFood <- as.numeric(as.character(num_model$numFood))
 #num_model$numSpecies <- as.numeric(as.character(num_model$numSpecies))
 num_model$numSpecies <- num_model$filterSpecies
@@ -616,6 +593,7 @@ num_model$numSpecies <- num_model$filterSpecies
 head(num_model)
 
 ```
+
 ```{r}
 mapped <- subset(num_model, select = c(5, 6, 7, 8))
 mapped <- (na.omit(mapped))
@@ -623,33 +601,31 @@ mapped <- (na.omit(mapped))
 zmapped <- subset(mapped, select = c(1, 2, 3))
 zmapped
 
-
 ```
+
+Next, I used the sample function to split the data 3:1 into 75% training and 15% testing subsets, separated the X-variables and the y-labels and set a constant seed value in addition to scaling and centering the x-variables. Scaling and centering the x-variables allows KNN to calculate distances in a more meaningful manner 
+ 
 ```{r}
 #scale
 zmapped <- as.data.frame(scale(zmapped, center = TRUE, scale = TRUE))
 
-#We also need to create test and train data sets, we will do this slightly differently by using the sample function. The 2 says create 2 data sets essentially, replacement means we can reset the random sampling across each vector and the probability gives sample the weight of the splits, 2/3 for train, 1/3 for test. 
 set.seed(1)
 splitarray <- sample(2, nrow(zmapped), replace=TRUE, prob=c(0.75, 0.25))
-#
+
 zmapped_Xtrain <- zmapped[splitarray==1, 1:3] # dataframe
 zmapped_Xtest <- zmapped[splitarray==2, 1:3] # dataframe
 zmapped_ytrain <- mapped[splitarray==1, 4] #  1-D array
 zmapped_ytest <- mapped[splitarray==2,4] # 1-D array
-
-length(zmapped_ytrain)
-length(zmapped_ytest)
+#length(zmapped_ytrain)
+#length(zmapped_ytest)
 ```
 
-The train/test sets are prepared, with X and y variables separated as well. We ended up with `r length(zmapped_ytrain)` data point in the train set, and `r length(zmapped_ytest)` data point in the test set.
+We ended up with `r length(zmapped_ytrain)` data points in the train set, and `r length(zmapped_ytest)` data points in the test set.
+
+Next, I ran knn and initially looped through the k-values from 3 to 21, but here we will show the confusion matrix from 3 to 7 for a better visual representation and looked at the accuracy, precision, recall, F1 and other metrics using the confusion matrix to determine the best k value. 
 
 
-
-
-Let us loop through the k-values from 3 to 19, and tabulate the total accuracy as well as other performance metrics using the `caret::confusionMatrix` function.
-
-```{r results="T"}
+```{r results="hide"}
 loadPkg(gmodels)
 loadPkg(FNN)
 loadPkg(caret) 
@@ -657,7 +633,7 @@ loadPkg(caret)
 # create an empty dataframe to store the results from confusion matrices
 confusionMatrixResultDf = data.frame( k=numeric(0), Accuracy= numeric(0), Sensitivity=numeric(0), Specificity=numeric(0), Pos.Pred.Value=numeric(0), Neg.Pred.Value=numeric(0), Precision=numeric(0), Recall=numeric(0), F1=numeric(0), Prevalence=numeric(0), Detection.Rate=numeric(0), Detection.Prevalence=numeric(0), Balanced.Accuracy=numeric(0), row.names = NULL )
 
-for (kval in 3:13) {
+for (kval in 3:7) {
   MappedPredict <- knn(train = zmapped_Xtrain, test = zmapped_Xtest, cl=zmapped_ytrain, k=kval) 
   mappedXtable <- CrossTable(zmapped_ytest, MappedPredict, prop.chisq = FALSE)
   print( paste("k = ", kval) )
@@ -679,13 +655,10 @@ for (kval in 3:13) {
 xkabledply(confusionMatrixResultDf)
 ```
 
-```{r}
-#zpima_Xtrain <- zpima[splitarray==1, 1:7] # dataframe
-#zpima_Xtest <- zpima[splitarray==2, 1:7] # dataframe
-#zpima_ytrain <- pima[splitarray==1, 8] #  1-D array, use pima, not zpima
-#zpima_ytest <- pima[splitarray==2, 8] # 1-D array, use pima, not zpima
+```{r results="hide"}
+# I realized that the chooseK function graph does not show an accurate representation of the accuracy as with some k values, the test set doesnt identify one of the species levels which messes up the accuracy calculation. 
+
 chooseK = function(k, train_set, val_set, train_class, val_class){
-  
   # Build knn with k neighbors considered.
   set.seed(1)
   class_knn = knn(train = train_set,    #<- training set cases
@@ -695,14 +668,11 @@ chooseK = function(k, train_set, val_set, train_class, val_class){
                   # use.all = TRUE)       #<- control ties between class assignments
                                         #   If true, all distances equal to the kth 
                                         #   largest are included
-  
   tab = table(class_knn, val_class)
-  
   # Calculate the accuracy.
   accu = sum(tab[row(tab) == col(tab)]) / sum(tab)                         
   cbind(k = k, accuracy = accu)
 }
-
 # The sapply() function plugs in several values into our chooseK function.
 # function(x)[function] allows you to apply a series of numbers
 # to a function without running a for() loop.
@@ -712,21 +682,14 @@ knn_different_k = sapply(seq(1, 21, by = 2),  #<- set k to be odd number from 1 
                                              val_set = zmapped_Xtest,
                                              train_class = zmapped_ytrain,
                                              val_class = zmapped_ytest))
-
-# Reformat the results to graph the results.
 str(knn_different_k)
 knn_different_k = data.frame(k = knn_different_k[1,],
                              accuracy = knn_different_k[2,])
-
-# Plot accuracy vs. k.
-# install.packages("ggplot2")
 loadPkg(ggplot2)
-
-ggplot(knn_different_k,
-       aes(x = k, y = accuracy)) +
-  geom_line(color = "orange", size = 1.5) +
-  geom_point(size = 3)
-
+#ggplot(knn_different_k,
+#       aes(x = k, y = accuracy)) +
+#  geom_line(color = "orange", size = 1.5) +
+#  geom_point(size = 3)
 ```
 
 
@@ -745,6 +708,10 @@ m
 #c("Bacillus cereus","Campylobacter jejuni","Ciguatoxin", "Ciguatoxin", "Escherichia coli", "Norovirus", "Others", #"Salmonella", "Scombroid toxin", "Staphylococcus")
 
 ```
+I decided the best k value for KNN was k=5 which gave us an overall accuracy of 38.5%. This was due to the fact that as k reached k=5, the accuracy had higher jumps in improvement. For example between k=3 and k=4, there was a 5% jump in accuracy and between k=4 and k=5 there was a 2.3% jump in accuracy. And after k=5, with each increase in k, accuracy only increased by around 0.6% each time, there wasnt much improvement. Eventually if I chose a very large k value that would bring the accuracy up to around 43% or higher but that would be at the expense of precision. 
+
+If we look at the k=5 value in the confusion matrix, there are a few things I noticed that we would like to highlight. For balanced accuracy the Ciguatoxin came at 72.7% and Scombroid toxin has 63.8% and the rest of the features had roughly 50% balanced accuracy. And for the F1 scores, Ciguatoxin had 41.5% and Norovirus has 43.9% and Scombroid toxin has 32.9%. Looking at these values especially, we were able to conclude that KNN was able to classify Ciguatoxin and Scombroid toxin the most reliably and had trouble with the other causative agents but did have some success. 
+
 ## Decision Trees
 
 Decision trees are easily understood and interpreted. They are also easily able to use both quantitative and qualitative variables without having to make dummy variables. Here, both a basic decision tree and a Random Forest were used to model the data. A basic decision tree was used first, then a Random Forest, which makes use of the bootstrap method. Additionally, the constructed trees in the forest are decorrelated by using only a random sample of the predictors and not all of them. (James, 2013)
