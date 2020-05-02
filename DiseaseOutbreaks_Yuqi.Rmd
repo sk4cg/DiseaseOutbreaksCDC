@@ -1,0 +1,973 @@
+---
+title: "DiseaseOutbreaks"
+author: "Wasted Potential: Sneha, RyeAnne, Yuqi, Ben"
+date: "4/2/2020"
+output:
+  html_document:
+    code_folding: hide
+    # number_sections: true
+    toc: yes
+    toc_depth: 3
+    toc_float: yes
+  pdf_document:
+    toc: yes
+    toc_depth: '3'
+---
+
+```{r setup, include=FALSE}
+# some of common options (and the defaults) are: 
+# include=T, eval=T, echo=T, results='hide'/'asis',..., collapse=F, warning=T, message=T, error=T, cache=T, fig.width=6, fig.height=4, fig.dim=c(6,4) #inches, fig.align='left'/'center','right', 
+# knitr::opts_chunk$set(warning = F, results = 'markup', message = F)
+knitr::opts_chunk$set(warning = F, results = 'hide', message = F)
+# knitr::opts_chunk$set(include = F)
+# knitr::opts_chunk$set(echo = TRUE)
+options(scientific=T, digits = 3) 
+# options(scipen=9, digits = 3) 
+# ‘scipen’: integer. A penalty to be applied when deciding to print numeric values in fixed or exponential notation.  Positive values bias towards fixed and negative towards scientific notation: fixed notation will be preferred unless it is more than ‘scipen’ digits wider.
+# use scipen=999 to prevent scientific notation at all times
+```
+
+```{r basic, include=F}
+# use this function to conveniently load libraries and work smoothly with knittingy
+# can add quietly=T option to the require() function
+loadPkg = function(pkg, character.only = FALSE) { 
+  if (!character.only) { pkg <- as.character(substitute(pkg)) }
+  pkg <- ifelse(!character.only, as.character(substitute(pkg)) , pkg)  
+  if (!require(pkg,character.only=T, quietly =T)) {  install.packages(substitute(pkg),dep=T); if(!require(pkg,character.only=T)) stop("Package not found") } 
+}
+loadPkg(knitr)
+loadPkg(tidyverse)
+loadPkg(ggplot2)
+loadPkg(stringr)
+loadPkg(maps)
+loadPkg(mapdata)
+loadPkg(usmap)
+loadPkg(tree)
+loadPkg(caret) 
+loadPkg(readr)
+loadPkg(car)
+loadPkg(rpart)
+loadPkg(rattle)
+loadPkg(xtable)
+loadPkg(kableExtra)
+loadPkg(stringi)
+
+
+
+
+# unload/detact package when done using it
+unloadPkg = function(pkg, character.only = FALSE) { 
+  if(!character.only) { pkg <- as.character(substitute(pkg)) } 
+  search_item <- paste("package", pkg,sep = ":") 
+  while(search_item %in% search()) { detach(search_item, unload = TRUE, character.only = TRUE) } 
+}
+```
+
+```{r xkablesummary}
+
+xkabledply = function(modelsmmrytable, title="Table", digits = 4, pos="left", bso="striped") { 
+  #' Combining base::summary, xtable, and kableExtra, to easily display model summary. 
+  #' wrapper for the base::summary function on model objects
+  #' ELo 202004 GWU DATS
+  #' version 1.2
+  #' @param modelsmmrytable This can be a generic table, a model object such as lm(), or the summary of a model object summary(lm()) 
+  #' @param title Title of table. 
+  #' @param digits Number of digits to display
+  #' @param pos Position of table, c("left","center","right") 
+  #' @param bso bootstrap_options = c("basic", "striped", "bordered", "hover", "condensed", "responsive")
+  #' @return HTML table for display
+  #' @examples
+  #' library("xtable")
+  #' library("kableExtra")
+  #' xkabledply( df, title="Table testing", pos="left", bso="hover" )
+  modelsmmrytable %>%
+    xtable() %>% 
+    kable(caption = title, digits = digits) %>%
+    kable_styling(bootstrap_options = bso, full_width = FALSE, position = pos)
+}
+
+xkablesummary = function(df, title="Table: Statistics summary.", digits = 4, pos="left", bso="striped") { 
+  #' Combining base::summary, xtable, and kableExtra, to easily display numeric variable summary of dataframes. 
+  #' ELo 202004 GWU DATS
+  #' version 1.2
+  #' @param df The dataframe.
+  #' @param title Title of table. 
+  #' @param digits Number of digits to display
+  #' @param pos Position of table, c("left","center","right") 
+  #' @param bso bootstrap_options = c("basic", "striped", "bordered", "hover", "condensed", "responsive")
+  #' @return The HTML summary table for display, or for knitr to process into other formats 
+  #' @examples
+  #' xkablesummary( faraway::ozone )
+  #' xkablesummary( ISLR::Hitters, title="Five number summary", pos="left", bso="hover"  )
+  
+  s = summary(df) %>%
+    apply( 2, function(x) stringr::str_remove_all(x,c("Min.\\s*:\\s*","1st Qu.\\s*:\\s*","Median\\s*:\\s*","Mean\\s*:\\s*","3rd Qu.\\s*:\\s*","Max.\\s*:\\s*")) ) %>% # replace all leading words
+    apply( 2, function(x) stringr::str_trim(x, "right")) # trim trailing spaces left
+  
+  colnames(s) <- stringr::str_trim(colnames(s))
+  
+  if ( dim(s)[1] ==6 ) { rownames(s) <- c('Min','Q1','Median','Mean','Q3','Max') 
+  } else if ( dim(s)[1] ==7 ) { rownames(s) <- c('Min','Q1','Median','Mean','Q3','Max','NA') }
+  
+  xkabledply(s, title=title, digits = digits, pos=pos, bso=bso )
+}
+
+xkablevif = function(model, title="VIFs of the model", digits = 3, pos="left", bso="striped") { 
+  #' Combining faraway::vif, xtable, and kableExtra, to easily display numeric summary of VIFs for a model. 
+  #' ELo 202004 GWU DATS
+  #' version 1.2
+  #' @param model The lm or compatible model object.
+  #' @param title Title of table. 
+  #' @param digits Number of digits to display
+  #' @param pos Position of table, c("left","center","right") 
+  #' @param bso bootstrap_options = c("basic", "striped", "bordered", "hover", "condensed", "responsive")
+  #' @return The HTML summary table of the VIFs for a model for display, or for knitr to process into other formats 
+  #' @examples
+  #' xkablevif( lm(Salary~Hits+RBI, data=ISLR::Hitters) )
+  
+  vifs = table( names(model$coefficients)[2:length(model$coefficients)] ) # remove intercept to set column names
+  vifs[] = faraway::vif(model) # set the values
+  xkabledply( vifs, title=title, digits = digits, pos=pos, bso=bso )
+}
+
+```
+
+## Pre-processing and Summary of the Dataset
+
+Upon reading in our dataset, the variable types were conveniently all correct. Our categorical variables are all factors and our numerical features (illnesses, 
+hospitalizations and fatalities) and year variable are all of type “int.” The number of observations in our dataset is 19,119 and the number of variables is 12. 
+
+Here, the data is read in as 'outbreaks.' Notice that there are two read-ins; one is for use in pre-processing and model building, while the other is used for EDA.
+```{r reading in data, include = T}
+outbreaks <- read.csv('outbreaks.csv')
+
+str(outbreaks)
+
+summary(outbreaks)
+
+outbreak <- read.csv("outbreaks.csv")
+summary(outbreak)
+str(outbreak)
+```
+
+#### Missing Data
+
+After skimming through the data set, We noticed that several predictors contained a large number of missing values. It is important to note that the missing 
+values are denoted as '' instead of 'NA.' The largest occurances of missing values were in Serotype/Genotype (15,212 points, or 79.56% of datatset) and 
+Ingredient (17,243 points, or 90.18% of dataset). Food contained 8,963 missing values (46.88% of dataset). Species and Status also contained a respectable 
+number of missing values (6,619 points, or 34.62% of dataset).
+```{r exploring the data, include = T}
+year_na <- subset(outbreaks, Year == '') # 0 missing values
+
+month_na <- subset(outbreaks, Month == '') # 0 missing values
+
+location_na <- subset(outbreaks, Location == '') # 2,166 missing values (11.32% of dataset)
+
+food_na <- subset(outbreaks, Food == '') # 8,963 missing values (46.88% of dataset)
+
+ingredient_na <- subset(outbreaks, Ingredient == '') # 17,243 missing values (90.18% of dataset)
+
+species_na <- subset(outbreaks, Species == '') # 6,619 missing values (34.62% of dataset)
+
+serotype.genotype_na <- subset(outbreaks, Serotype.Genotype == '') # 15,212 missing values (79.56% of dataset)
+
+status_na <- subset(outbreaks, Status == '') # 6,619 missing values (34.62% of dataset)
+
+illnesses_na <- subset(outbreaks, Illnesses == '') # 0 missing values
+
+hospitalizations_na <- subset(outbreaks, Hospitalizations == '') # 0 missing values
+
+fatalities_na <- subset(outbreaks, Fatalities == '') # 0 missing values
+```
+
+#### Outlier Discovery
+
+After constructing boxplots on the numerical variables (excluding year), outliers were discovered in illnesses, hospitalizations and fatalities.
+
+• Illnesses: with an IQR of 24, there are technically 1,782 outliers. 
+
+• Hospitalizations: with an IQR of 1.5, there are technically 1,325 outliers. 
+
+• Fatalities: with an IQR of 0, there are technically 176 outliers. 
+
+However, these outliers are significant and should not be excluded. Outliers can help explain what species of foodborne illnesses are the 
+most destructive, or what predictors are especially harmful (i.e. State, Location). For example, in the case of illnesses the largest 
+observation was recorded in a multistate area at a restaurant/private home residence/cateering service and came from salmonella. Perhaps 
+the location has something to do with why so many people got sick. Or, salmonella could be an especially dangerous disease. Excluding this 
+outlier could produce harmful effects and cloud judgement on what factors predict the causitive agent in foodborne disease outbreaks. 
+```{r graphs, include = T}
+illnesses_bp <- boxplot(outbreaks$Illnesses, main = "Boxplot of Illnesses", ylab = "Number of Illnesses")
+
+outliers_illnesses <- subset(outbreaks, Illnesses > 43)
+
+hospitalizations_bp <- boxplot(outbreaks$Hospitalizations, main = "Boxplot of Hospitalizations", ylab = "Number of Hospitalizations")
+
+outliers_hospitalizations <- subset(outbreaks, Hospitalizations > 2.5)
+
+fatalities_bp <- boxplot(outbreaks$Fatalities, main = "Boxplot of Fatalities", ylab = "Number of Fatalities")
+
+outliers_fatalities <- subset(outbreaks, Fatalities > 0)
+```
+
+## EDA
+
+#### Illnesses across the states change in different years. 
+```{r}
+levels(outbreak$State)[levels(outbreak$State)=="Washington DC"] <- "District of Columbia"
+
+# In 1998
+ill1998 <- outbreak %>% filter(Year == 1998) %>%
+  group_by(State) %>% 
+  summarise(illness = mean(Illnesses, na.rm=T)) %>%
+  left_join(x=statepop, by=c("full"="State")) %>%
+  select(fips, abbr, full, illness)
+plot_usmap(data=ill1998, values="illness", color=1, labels = T) +
+  scale_fill_continuous(name="Illnesses",
+                        low = "yellow", high = "red",
+                        label=scales::comma) + 
+  ggtitle(paste0("Illnesses by state in ", 1998)) +
+  theme(legend.position = "right",
+        plot.title = element_text(hjust = 0.5, size=14))
+
+# In 2004
+ill2004 <- outbreak %>% filter(Year == 2004) %>%
+  group_by(State) %>% 
+  summarise(illness = mean(Illnesses, na.rm=T)) %>%
+  left_join(x=statepop, by=c("full"="State")) %>%
+  select(fips, abbr, full, illness)
+plot_usmap(data=ill2004, values="illness", color=1, labels = T) +
+  scale_fill_continuous(name="Illnesses",
+                        low = "yellow", high = "red",
+                        label=scales::comma) + 
+  ggtitle(paste0("Illnesses by state in ", 2004)) +
+  theme(legend.position = "right",
+        plot.title = element_text(hjust = 0.5, size=14))
+
+# In 2010 
+ill2010 <- outbreak %>% filter(Year == 2010) %>%
+  group_by(State) %>% 
+  summarise(illness = mean(Illnesses, na.rm=T)) %>%
+  left_join(x=statepop, by=c("full"="State")) %>%
+  select(fips, abbr, full, illness)
+plot_usmap(data=ill2010, values="illness", color=1, labels = T) +
+  scale_fill_continuous(name="Illnesses",
+                        low = "yellow", high = "red",
+                        label=scales::comma) + 
+  ggtitle(paste0("Illnesses by state in ", 2010)) +
+  theme(legend.position = "right",
+        plot.title = element_text(hjust = 0.5, size=14))
+
+# In 2015
+ill2015 <- outbreak %>% filter(Year == 2015) %>%
+  group_by(State) %>% 
+  summarise(illness = mean(Illnesses, na.rm=T)) %>%
+  left_join(x=statepop, by=c("full"="State")) %>%
+  select(fips, abbr, full, illness)
+plot_usmap(data=ill2015, values="illness", color=1, labels = T) +
+  scale_fill_continuous(name="Illnesses",
+                        low = "yellow", high = "red",
+                        label=scales::comma) + 
+  ggtitle(paste0("Illnesses by state in ", 2015)) +
+  theme(legend.position = "right",
+        plot.title = element_text(hjust = 0.5, size=14))
+
+```
+
+From the USMAP above, we can clearly see that the maximum number of illnesses has been lowered to 80 from 1998 to 2015. In 1998, the North Dakota has maximum illness around 300; however, in 2004, Montana and Utah has maximum illnesses around 80. In 2010, only North and South Carolina have maximum illnesses around 50, and South Carolina's illness has been backed to normal (under 20) in 2015. 
+
+
+
+#### The general trend of foodborne illnesses over the years and months
+```{r}
+# By Month
+outbreak_month <- outbreak %>% 
+  group_by(Month) %>%
+  summarise(Illness = sum(Illnesses, na.rm=T)) 
+outbreak_month$Month <- substr(outbreak_month$Month, 1, 3)
+outbreak_month$Month <- factor(outbreak_month$Month, month.abb, ordered=TRUE)
+
+outbreak_month %>% 
+  ggplot(aes(x = Month, y = Illness)) +
+  geom_bar(stat = "identity", fill = "cadetblue3") +
+  geom_text(aes(label = Illness), vjust = -0.4, color = "black",size=3) +
+  ggtitle("Foodborne Illnesses change By Month") +
+  theme(panel.grid.major = element_blank(),
+        panel.grid.minor = element_blank(),
+        panel.background = element_rect(fill = "gray96"),
+        axis.title.x=element_blank(),
+        plot.title = element_text(hjust = 0.5, size=14))
+
+# By year
+outbreak %>% group_by(Year) %>%
+  summarise(Illness = sum(Illnesses, na.rm=T)) %>%
+  ggplot(aes(x = Year, y = Illness)) +
+  geom_bar(stat = "identity", fill = "cadetblue3") +
+  geom_text(aes(label = Illness), vjust = -0.4, color = "black",size=3) +
+  ggtitle("Foodborne Illnesses change By Year") +
+  theme(panel.grid.major = element_blank(),
+        panel.grid.minor = element_blank(),
+        panel.background = element_rect(fill = "gray96"),
+        axis.title.x=element_blank(),
+        plot.title = element_text(hjust = 0.5, size=14))
+
+```
+
+The first plot above shows the Foodborne illnesses changed by month. We can clearly see that the foodborn illnesses outbreks happened during the months March to June, and November to December.  
+
+The second plot shows the foodborne illnesses changed by year. We noticed that the general trend of foodborne illnesses has been dereasing from the year 1998 to 2009, but it starts to have constant values from 2010 to 2015 which means there is no such significant increase in illness outbreaks during that 6 years. We noticed that in late 2003 and 2006 the illnesses tended to be maximized which could indicate the foodborn outbreaks events happened in that 2 years: hepatitis outbreak in late 2003 from Chi-Chi's restaurant and over people suffered from the lettuce and organic spinach during 2006 by Taco Bell and Natural Selection Foods.
+
+
+#### Time series plot of illnesses caused by top4 species
+```{r}
+outbreak %>% filter(Species %in% c(
+  "Norovirus genogroup I",
+  "Salmonella enterica",
+  "Norovirus genogroup II",
+  "Clostridium perfringens"
+)) %>%
+  group_by(Year, Species) %>%
+  summarise(Illnesses = sum(Illnesses, na.rm=T)) %>% 
+  ggplot(aes(x=Year, y=Illnesses, lty=Species, col=Species)) + 
+  geom_line()
+```
+
+The above plot shows the time series plot of illnesses caused by top4 species. We can clearly see that the Norovirus genogroup I had the largest number of foodborne illnesses outbreaks from 1998 to 2009. After 2009, Salmonella enterica and Norovirus genogroup II have nearly same number of illnesses. But generally speaking, Norovirus causes the highest number of foodborne illnesses outbreaks from 1998 to 2015.
+
+
+
+## Model Building
+
+
+#### Preprocessing before model building 
+
+Before building our models, we needed to do some additional preprocessing to our data in order to get it ready for building informative models. We decided that we would 
+focus on 3 different predictor variables: `Month`, `Food`, and `State`. And hopefully these features would considerably aid us in training models to predict our target 
+variable, `Species`.  At this stage in our analysis the dataset, provided us with `Month`  as a factor variable with 12 levels, `State` as a factor variable with 55 
+levels (it included DC and US territories in addition to the 50 states), `Food` as a factor variable with 3128 levels, and `Species` as a factor variable with 202 levels. 
+We believe that the datapoints for Food and Species contained hand entered variable (rather than choosing from a pre-existing list) which opened it up to a lot of 
+variability in responses and would make it harder for the models to classify with so many levels. Additionally, in order to create the decision trees there was a limit of
+32 levels and the as is data did not fit those requirements. Thus, we needed to filter down each variable that had a high amount of levels and filter it into more 
+manageable distinctions. While we do recognize that this added bias to our models and especially disadvantaged the variables that were less common in our dataset (as they
+were put in the "Other" category), we were hoping it would still provide us with meaningful models that were able to classify Species. 
+
+I chose not to filter down the `Month` variable as I felt it was not necessary and that it would be more informative to keep it as is than to make up a reasoning on how 
+to group them. To filter the variable I used a function that checked each data point in a given feature for different regex expressions that I specified. For instance for
+the Food variable I checked for data points that contained "fish", "salmon", or "tuna" and if they contained any of those regex expressions they would be classified into 
+the "Fish" level, and so on. For Food I chose overarching categories of different types of food such as chicken, vegetarian, pork, beef etc. For the Species variable I 
+filtered the levels by choosing the most prevalent species in the dataset and choosng those as levels, and the rest were classified into the Other category. And for the 
+States, I used the Koppen climate classification which for the US and its territories, encompasses 4 different climate levels: Tropical, Dry (Arid and Semiarid), 
+Temperate (Mesothermal), and Continental (Microthermal). Some states do have high variation in climate regions, and for those states I chose the level type that 
+encompassed the largest percentage (majority) of land in the state. I also included an "other" level to catch any mis-entered data. 
+
+After preprocessing and filtering the data, the `Food` variable had 8 levels, the `Species` variable had 10 levels, the `State` variable had 5 levels, and the `Month` 
+variable which was not altered had 12 levels. 
+```{r}
+foodCatXform <- function(val) { 
+  igCase = TRUE
+  if ( ( regexpr("vegetarian",val, ignore.case=igCase)>0 || regexpr("vegan",val, ignore.case=igCase)>0 || regexpr("veggie",val, ignore.case=igCase)>0 || regexpr("salad",val, ignore.case=igCase)>0 || regexpr("meatless",val, ignore.case=igCase)>0 )     && 
+       !( regexpr("nonvegan",val, ignore.case=igCase)>0 || regexpr("chicken",val, ignore.case=igCase)>0 || regexpr("someOtherLikeVegeButNotReallyException",val, ignore.case=igCase)>0 ) ) {
+    return("Vegetarian")
+  } else if ( ( regexpr("chick",val, ignore.case=igCase)>0 || regexpr("chicken",val, ignore.case=igCase)>0 ) && 
+       !( regexpr("chickpea",val, ignore.case=igCase)>0 || regexpr("someOtherChickenException",val, ignore.case=igCase)>0 ) ) { 
+    return("Chicken") 
+  } else if ( ( regexpr("pork",val, ignore.case=igCase)>0 )  ) { 
+    return("Pork") 
+  } else if ( ( regexpr("beef",val, ignore.case=igCase)>0 || regexpr("steak",val, ignore.case=igCase)>0 || regexpr("meat",val, ignore.case=igCase)>0 ) && 
+       !( regexpr("holy cow",val, ignore.case=igCase)>0 || regexpr("beefless",val, ignore.case=igCase)>0 || regexpr("someOtherChickenException",val, ignore.case=igCase)>0 ) ) {
+    return("Beef")
+  } else if ( ( regexpr("fish",val, ignore.case=igCase)>0 || regexpr("tuna",val, ignore.case=igCase)>0 || regexpr("salmon",val, ignore.case=igCase)>0  ) ) {
+    return("Fish")
+  } else if ( ( regexpr("eggs",val, ignore.case=igCase)>0 || regexpr("egg",val, ignore.case=igCase)>0 ) && 
+       !( regexpr("eggless",val, ignore.case=igCase)>0 ) ) {
+    return("Egg")
+  }  else if ( ( regexpr("fruit",val, ignore.case=igCase)>0 || regexpr("strawberry",val, ignore.case=igCase)>0 || regexpr("acai",val, ignore.case=igCase)>0 || regexpr("banana",val, ignore.case=igCase)>0 || regexpr("berries",val, ignore.case=igCase)>0 || regexpr("berry",val, ignore.case=igCase)>0 || regexpr("mango",val, ignore.case=igCase)>0 || regexpr("melon",val, ignore.case=igCase)>0)) {
+    return("Fruit")
+  }  else {
+    return("Others")
+  }
+}
+
+speciesCatXform <- function(val) { 
+  igCase = TRUE
+  if ( ( regexpr("Norovirus",val, ignore.case=igCase)>0 || regexpr("norovirus",val, ignore.case=igCase)>0 ) ) {
+    return("Norovirus")
+  } else if ( ( regexpr("Salmonella",val, ignore.case=igCase)>0 ) ){ 
+    return("Salmonella") 
+  } else if ( ( regexpr("Clostridium perfringens",val, ignore.case=igCase)>0 || regexpr("steak",val, ignore.case=igCase)>0 ) ) {
+    return("Clostridium perfringens")
+  } else if ( ( regexpr("Staphylococcus",val, ignore.case=igCase)>0)  ) {
+    return("Staphylococcus")
+  } else if ( ( regexpr("Escherichia coli",val, ignore.case=igCase)>0)  ) {
+    return("Escherichia coli")
+  } else if ( ( regexpr("Scombroid toxin",val, ignore.case=igCase)>0)  ) {
+    return("Scombroid toxin")
+  } else if ( ( regexpr("Bacillus cereus",val, ignore.case=igCase)>0)  ) {
+    return("Bacillus cereus")
+  } else if ( ( regexpr("Campylobacter jejuni",val, ignore.case=igCase)>0)  ) {
+    return("Campylobacter jejuni")
+  } else if ( ( regexpr("Ciguatoxin",val, ignore.case=igCase)>0)  ) {
+    return("Ciguatoxin")
+  }     else {
+    return("Others")
+  }
+}
+
+#https://www.plantmaps.com/koppen-climate-classification-map-united-states.php
+#https://en.climate-data.org/
+
+stateCatXform <- function(val) { 
+  igCase = TRUE
+  if( regexpr("Alabama",val, ignore.case=igCase)>0 ) {
+    return("3")
+  } else if ( regexpr("Alaska",val, ignore.case=igCase)>0 ) { 
+    return("4") 
+  } else if ( regexpr("Arizona",val, ignore.case=igCase)>0 ) {
+    return("2")
+  } else if ( ( regexpr("Arkansas",val, ignore.case=igCase)>0)  ) {
+    return("3")
+  } else if ( ( regexpr("California",val, ignore.case=igCase)>0)  ) {
+    return("3")
+  } else if ( ( regexpr("Colorado",val, ignore.case=igCase)>0)  ) {
+    return("2")
+  } else if ( ( regexpr("Connecticut",val, ignore.case=igCase)>0)  ) {
+    return("4")
+  } else if ( ( regexpr("Delaware",val, ignore.case=igCase)>0)  ) {
+    return("3")
+  } else if ( ( regexpr("Florida",val, ignore.case=igCase)>0)  ) {
+    return("3")
+  } else if ( ( regexpr("Georgia",val, ignore.case=igCase)>0)  ) {
+    return("3")
+  } else if ( ( regexpr("Hawaii",val, ignore.case=igCase)>0)  ) {
+    return("1")
+  } else if ( ( regexpr("Idaho",val, ignore.case=igCase)>0)  ) {
+    return("2")
+  } else if ( ( regexpr("Illinois",val, ignore.case=igCase)>0)  ) {
+    return("4")
+  } else if ( ( regexpr("Indiana",val, ignore.case=igCase)>0)  ) {
+    return("4")
+  } else if ( ( regexpr("Iowa",val, ignore.case=igCase)>0)  ) {
+    return("4")
+  } else if ( ( regexpr("Kansas",val, ignore.case=igCase)>0)  ) {
+    return("4")
+  } else if ( ( regexpr("Kentucky",val, ignore.case=igCase)>0)  ) {
+    return("4")
+  } else if ( ( regexpr("Louisiana",val, ignore.case=igCase)>0)  ) {
+    return("3")
+  } else if ( ( regexpr("Maine",val, ignore.case=igCase)>0)  ) {
+    return("4")
+  } else if ( ( regexpr("Maryland",val, ignore.case=igCase)>0)  ) {
+    return("3")
+  } else if ( ( regexpr("Massachusetts",val, ignore.case=igCase)>0)  ) {
+    return("4")
+  } else if ( ( regexpr("Michigan",val, ignore.case=igCase)>0)  ) {
+    return("4")
+  } else if ( ( regexpr("Minnesota",val, ignore.case=igCase)>0)  ) {
+    return("4")
+  } else if ( ( regexpr("Mississippi",val, ignore.case=igCase)>0)  ) {
+    return("3")
+  } else if ( ( regexpr("Missouri",val, ignore.case=igCase)>0)  ) {
+    return("4")
+  } else if ( ( regexpr("Montana",val, ignore.case=igCase)>0)  ) {
+    return("2")
+  } else if ( ( regexpr("Nebraska",val, ignore.case=igCase)>0)  ) {
+    return("4")
+  } else if ( ( regexpr("Nevada",val, ignore.case=igCase)>0)  ) {
+    return("2")
+  } else if ( ( regexpr("New Hampshire",val, ignore.case=igCase)>0)  ) {
+    return("4")
+  } else if ( ( regexpr("New Jersey",val, ignore.case=igCase)>0)  ) {
+    return("4")
+  } else if ( ( regexpr("New Mexico",val, ignore.case=igCase)>0)  ) {
+    return("2")
+  } else if ( ( regexpr("New York",val, ignore.case=igCase)>0)  ) {
+    return("4")
+  } else if ( ( regexpr("North Carolina",val, ignore.case=igCase)>0)  ) {
+    return("3")
+  } else if ( ( regexpr("North Dakota",val, ignore.case=igCase)>0)  ) {
+    return("4")
+  } else if ( ( regexpr("Ohio",val, ignore.case=igCase)>0)  ) {
+    return("4")
+  } else if ( ( regexpr("Oklahoma",val, ignore.case=igCase)>0)  ) {
+    return("3")
+  } else if ( ( regexpr("Oregon",val, ignore.case=igCase)>0)  ) {
+    return("3")
+  } else if ( ( regexpr("Pennsylvania",val, ignore.case=igCase)>0)  ) {
+    return("4")
+  } else if ( ( regexpr("Rhode Island",val, ignore.case=igCase)>0)  ) {
+    return("4")
+  } else if ( ( regexpr("South Carolina",val, ignore.case=igCase)>0)  ) {
+    return("3")
+  } else if ( ( regexpr("South Dakota",val, ignore.case=igCase)>0)  ) {
+    return("4")
+  } else if ( ( regexpr("Tennessee",val, ignore.case=igCase)>0)  ) {
+    return("3")
+  } else if ( ( regexpr("Texas",val, ignore.case=igCase)>0)  ) {
+    return("3")
+  } else if ( ( regexpr("Utah",val, ignore.case=igCase)>0)  ) {
+    return("4")
+  } else if ( ( regexpr("Vermont",val, ignore.case=igCase)>0)  ) {
+    return("4")
+  } else if ( ( regexpr("Virginia",val, ignore.case=igCase)>0)  ) {
+    return("3")
+  } else if ( ( regexpr("Washington",val, ignore.case=igCase)>0)  ) {
+    return("3")
+  } else if ( ( regexpr("West Virginia",val, ignore.case=igCase)>0)  ) {
+    return("4")
+  } else if ( ( regexpr("Wisconsin",val, ignore.case=igCase)>0)  ) {
+    return("4")
+  } else if ( ( regexpr("Wyoming",val, ignore.case=igCase)>0)  ) {
+    return("2")
+  } else if ( ( regexpr("District of Columbia",val, ignore.case=igCase)>0 || regexpr("DC",val, ignore.case=igCase)>0 ) || regexpr("D.C.",val, ignore.case=igCase)>0 ) {
+    return("3")
+  } else if ( ( regexpr("American Samoa",val, ignore.case=igCase)>0) || regexpr("Samoa",val, ignore.case=igCase)>0 ) {
+    return("1")
+  } else if ( ( regexpr("Guam",val, ignore.case=igCase)>0)  ) {
+    return("1")
+  } else if ( ( regexpr("Mariana",val, ignore.case=igCase)>0)  ) {
+    return("1")
+  } else if ( ( regexpr("Puerto Rico",val, ignore.case=igCase)>0) || regexpr("PR",val, ignore.case=igCase)>0 ) {
+    return("1")
+  } else if ( ( regexpr("Virgin Islands",val, ignore.case=igCase)>0) || regexpr("US Virgin Islands",val, ignore.case=igCase)>0 ) {
+    return("1")
+  }     else {
+    return("Others")
+  }
+}
+```
+
+```{r modelpreprocess}
+out = outbreaks[c(2:5, 7)]
+#str(out)
+
+out$filterFood = sapply(out$Food, FUN = foodCatXform )
+out$filterSpecies = sapply(out$Species, FUN = speciesCatXform )
+out$filterState = sapply(out$State, FUN = stateCatXform )
+#str(out)
+out$filterFood = factor(out$filterFood)
+out$filterSpecies = factor(out$filterSpecies)
+out$filterState = factor(out$filterState)
+
+#koppen climate classification for states 
+# https://www.plantmaps.com/koppen-climate-classification-map-united-states.php
+
+#str(out)
+#summary(out)
+
+```
+
+```{r finalset, echo=TRUE}
+# This is the final data set that includes Species (as the response) and Food, State, and Month (as predictors)
+
+model_data = data.frame(out[,c("Month", "filterFood", "filterSpecies", "filterState")])
+
+head(model_data)
+
+```
+
+## K-Nearest Neighbors
+```{r}
+loadPkg(xtable)
+loadPkg(kableExtra)
+loadPkg(stringi)
+#str(model_data)
+#xkablesummary(model_data)
+```
+
+We can see from the histograms below that each of the feature variable are not normally distributed. The Species variable has a left skew. 
+```{r}
+loadPkg(psych)
+pairs.panels(model_data, 
+             method = "pearson", # correlation method
+             hist.col = "#8855aa", # set histogram color, can use "#22AFBB", "red",
+             density = TRUE,  # show density plots
+             ellipses = TRUE # show correlation ellipses
+             )
+unloadPkg(psych)
+```
+
+First, I needed to do some additional preprocessing before executing KNN. The R KNN function requires numerical data, and since our feature variables were all categorical
+at this point, I chose to map each factor level to a number and then run KNN. It was not necessary to map the Species variable as it was the target variable. 
+```{r KNNpreprocess}
+num_model <- model_data
+loadPkg(plyr)
+
+num_model$numMonth <- (mapvalues(num_model$Month, 
+          from=c("January","February","March", "April", "May", "June", "July", "August", "September", "October", "November", "December"), 
+          to=c(1,2,3, 4, 5, 6, 7, 8, 9, 10, 11, 12)))
+
+num_model$numFood <- (mapvalues(num_model$filterFood, 
+          from=c("Beef","Chicken","Egg", "Fish", "Fruit", "Others", "Pork", "Vegetarian"), 
+          to=c(1,2,3, 4, 5, 6, 7, 8)))
+
+num_model$numState <- as.numeric(as.character(num_model$filterState))
+
+#num_model$numSpecies <- (mapvalues(num_model$filterSpecies, 
+#          from=c("Bacillus cereus","Campylobacter jejuni","Ciguatoxin", "Ciguatoxin", "Escherichia coli", "Norovirus", "Others", #"Salmonella", "Scombroid toxin", "Staphylococcus"), 
+#          to=c(1,2,3, 4, 5, 6, 7, 8, 9, 10)))
+num_model$numMonth <- as.numeric(as.character(num_model$numMonth))
+num_model$numFood <- as.numeric(as.character(num_model$numFood))
+#num_model$numSpecies <- as.numeric(as.character(num_model$numSpecies))
+num_model$numSpecies <- num_model$filterSpecies
+
+head(num_model)
+
+```
+
+```{r}
+mapped <- subset(num_model, select = c(5, 6, 7, 8))
+mapped <- (na.omit(mapped))
+
+zmapped <- subset(mapped, select = c(1, 2, 3))
+zmapped
+
+```
+
+Next, I used the sample function to split the data 3:1 into 75% training and 15% testing subsets, separated the X-variables and the y-labels and set a constant seed value
+in addition to scaling and centering the x-variables. Scaling and centering the x-variables allows KNN to calculate distances in a more meaningful manner 
+```{r}
+#scale
+zmapped <- as.data.frame(scale(zmapped, center = TRUE, scale = TRUE))
+
+set.seed(1)
+splitarray <- sample(2, nrow(zmapped), replace=TRUE, prob=c(0.75, 0.25))
+
+zmapped_Xtrain <- zmapped[splitarray==1, 1:3] # dataframe
+zmapped_Xtest <- zmapped[splitarray==2, 1:3] # dataframe
+zmapped_ytrain <- mapped[splitarray==1, 4] #  1-D array
+zmapped_ytest <- mapped[splitarray==2,4] # 1-D array
+#length(zmapped_ytrain)
+#length(zmapped_ytest)
+```
+
+We ended up with `r length(zmapped_ytrain)` data points in the train set, and `r length(zmapped_ytest)` data points in the test set.
+
+Next, I ran knn and initially looped through the k-values from 3 to 21, but here we will show the confusion matrix from 3 to 7 for a better visual representation and 
+looked at the accuracy, precision, recall, F1 and other metrics using the confusion matrix to determine the best k value. 
+```{r results="hide"}
+loadPkg(gmodels)
+loadPkg(FNN)
+loadPkg(caret) 
+
+# create an empty dataframe to store the results from confusion matrices
+confusionMatrixResultDf = data.frame( k=numeric(0), Accuracy= numeric(0), Sensitivity=numeric(0), Specificity=numeric(0), Pos.Pred.Value=numeric(0), Neg.Pred.Value=numeric(0), Precision=numeric(0), Recall=numeric(0), F1=numeric(0), Prevalence=numeric(0), Detection.Rate=numeric(0), Detection.Prevalence=numeric(0), Balanced.Accuracy=numeric(0), row.names = NULL )
+
+for (kval in 3:7) {
+  MappedPredict <- knn(train = zmapped_Xtrain, test = zmapped_Xtest, cl=zmapped_ytrain, k=kval) 
+  mappedXtable <- CrossTable(zmapped_ytest, MappedPredict, prop.chisq = FALSE)
+  print( paste("k = ", kval) )
+  mappedXtable
+  # 
+  cm = confusionMatrix(MappedPredict, reference = zmapped_ytest ) # from caret library
+  # 
+  cmaccu = cm$overall['Accuracy']
+  print( paste("Total Accuracy = ", cmaccu ) )
+  # 
+  cmt = data.frame(k=kval, Accuracy = cmaccu, row.names = NULL ) # initialize a row of the metrics 
+  cmt = cbind( cmt, data.frame( t(cm$byClass) ) ) # the dataframe of the transpose, with k valued added in front
+  confusionMatrixResultDf = rbind(confusionMatrixResultDf, cmt)
+  # print("Other metrics : ")
+}
+```
+
+```{r, results="asis"}
+xkabledply(confusionMatrixResultDf)
+```
+
+```{r results="hide"}
+# I realized that the chooseK function graph does not show an accurate representation of the accuracy as with some k values, the test set doesnt identify one of the species levels which messes up the accuracy calculation. 
+
+chooseK = function(k, train_set, val_set, train_class, val_class){
+  # Build knn with k neighbors considered.
+  set.seed(1)
+  class_knn = knn(train = train_set,    #<- training set cases
+                  test = val_set,       #<- test set cases
+                  cl = train_class,     #<- category for classification
+                  k = k) #,                #<- number of neighbors considered
+                  # use.all = TRUE)       #<- control ties between class assignments
+                                        #   If true, all distances equal to the kth 
+                                        #   largest are included
+  tab = table(class_knn, val_class)
+  # Calculate the accuracy.
+  accu = sum(tab[row(tab) == col(tab)]) / sum(tab)                         
+  cbind(k = k, accuracy = accu)
+}
+# The sapply() function plugs in several values into our chooseK function.
+# function(x)[function] allows you to apply a series of numbers
+# to a function without running a for() loop.
+knn_different_k = sapply(seq(1, 21, by = 2),  #<- set k to be odd number from 1 to 21
+                         function(x) chooseK(x, 
+                                             train_set = zmapped_Xtrain,
+                                             val_set = zmapped_Xtest,
+                                             train_class = zmapped_ytrain,
+                                             val_class = zmapped_ytest))
+str(knn_different_k)
+knn_different_k = data.frame(k = knn_different_k[1,],
+                             accuracy = knn_different_k[2,])
+loadPkg(ggplot2)
+#ggplot(knn_different_k,
+#       aes(x = k, y = accuracy)) +
+#  geom_line(color = "orange", size = 1.5) +
+#  geom_point(size = 3)
+```
+
+```{r}
+x <- knn(train = zmapped_Xtrain, test = zmapped_Xtest, cl=zmapped_ytrain, k=5)
+x6 <- knn(train = zmapped_Xtrain, test = zmapped_Xtest, cl=zmapped_ytrain, k=6)
+
+#summary(x)
+summary(zmapped_ytrain)
+#x6 <- factor(x6, levels=c("Bacillus cereus","Campylobacter jejuni","Ciguatoxin", "Ciguatoxin", "Escherichia coli", "Norovirus", "Others", "Salmonella", "Scombroid toxin", "Staphylococcus"))
+
+#summary(zmapped_ytest)
+m <- mean(x == zmapped_ytest)
+m
+#zmapped_ytest
+#c("Bacillus cereus","Campylobacter jejuni","Ciguatoxin", "Ciguatoxin", "Escherichia coli", "Norovirus", "Others", #"Salmonella", "Scombroid toxin", "Staphylococcus")
+
+```
+
+I decided the best k value for KNN was k=5 which gave us an overall accuracy of 38.5%. This was due to the fact that as k reached k=5, the accuracy had higher jumps in 
+improvement. For example between k=3 and k=4, there was a 5% jump in accuracy and between k=4 and k=5 there was a 2.3% jump in accuracy. And after k=5, with each increase
+in k, accuracy only increased by around 0.6% each time, there wasnt much improvement. Eventually if I chose a very large k value that would bring the accuracy up to 
+around 43% or higher but that would be at the expense of precision. 
+
+If we look at the k=5 value in the confusion matrix, there are a few things I noticed that we would like to highlight. For balanced accuracy the Ciguatoxin came at 72.7% 
+and Scombroid toxin has 63.8% and the rest of the features had roughly 50% balanced accuracy. And for the F1 scores, Ciguatoxin had 41.5% and Norovirus has 43.9% and 
+Scombroid toxin has 32.9%. Looking at these values especially, we were able to conclude that KNN was able to classify Ciguatoxin and Scombroid toxin the most reliably and
+had trouble with the other causative agents but did have some success. 
+
+## Decision Trees
+
+Decision trees are easily understood and interpreted. They are also easily able to use both quantitative and qualitative variables without having to make dummy variables.
+Here, both a basic decision tree and a Random Forest were used to model the data. A basic decision tree was used first, then a Random Forest, which makes use of the 
+bootstrap method. Additionally, the constructed trees in the forest are decorrelated by using only a random sample of the predictors and not all of them. (James, 2013)
+
+**The Data Used**
+Ultimately, there were 12 species in the response; Bacillus cereus, Campylobacter jejuni, Ciguatoxin (from Gambierdiscus toxicus), Clostridium perfringens, Escherichia 
+coli, Norovirus, Salmonella, Scombroid toxin (produced by a variety of bacteria growing within fish), Staphylococcus, and the rest grouped as Others. As for the predictor
+variables, there were 12 levels for months (Jan-Dec), 4 levels set for State (separated by region, as explained above), and 8 levels for the Food; Beef, Chicken, Egg, 
+Fish, Fruit, Pork, Vegetarian, and Other. 
+
+**Train-Test split 3:1** 
+As was done in KNN, the data was split into a 3:1 split for training and testing data. The first 75% of the rows were used for training (14339 observations) and the last 
+25% was used for testing (4780 observations). However, because decision trees can classify categorical data, all variables were left as factors. 
+```{r}
+n <- nrow(model_data)
+n_train <- round(0.75 * n) 
+set.seed(1)
+train_indices <- sample(1:n, n_train)
+dt_train <- model_data[train_indices, ]  
+dt_test <- model_data[-train_indices, ]
+
+```
+
+#### Basic Decision Tree
+```{r}
+
+# basic decision tree with default parameters
+tree.outbreaks = tree(filterSpecies~.,dt_train)
+tree.pred = predict(tree.outbreaks,dt_test,type="class")
+table(tree.pred,dt_test$filterSpecies) # confusion matrix
+mean(tree.pred==dt_test$filterSpecies) # gives accuracy
+
+
+cm = confusionMatrix(tree.pred, dt_test$filterSpecies)
+print('Overall: ')
+cm$overall
+print('Class: ')
+cm$byClass
+
+```
+
+To start the classification process using a decision tree, a basic decision tree was used. No optimization of parameters was initially done, meaning that all parameters 
+were considered at each split, the size of the forest was at default, and no splitting criterion was set. This basic decision tree had an overall accuracy of only 
+`r round(cm$overall["Accuracy"]*100, digits=2)`%. Additionally, the sensitivity was 0% for all species except Scombroid toxin producing bacteria and those falling into 
+the "Other" category. The sensitivity for The Scombroid toxin producing bacteria was at 80.4%. What this means is that the algorithm was able to correctly identify the 
+Scombroid toxin producing bacteria 80.4% of the time but did not classify the other bacteria (Bacillus, Campylobacter, etc.) correctly. The specificty was at 100% for all
+except those falling into the Scomboid toxin producing bacteria, in which it was 97.6% and those falling into the "Others" category at 5.2%. THis means that the algorithm
+did not incorrectly classify a species into a category that was not meant to go into that category at a rate of 100% for all except Scombroid toxin producing bacteria and
+the others. 
+
+This indicates that this decision tree does not correctly identify the causative agent (Species) except when the causative agent is a Scombroid toxin producer, in which 
+case it identifies it 80.4% of the time correctly. The combination of low sensitivity and high specificity for most Species, but low specificty for a few, indicates that 
+many of the predictions from this decision tree are getting assigned to the same Species. In looking at the confusion matrix, you can see that almost every prediction is 
+that of the response "Other". 
+```{r}
+summary(tree.outbreaks)
+plot(tree.outbreaks, uniform=TRUE, main="Classification Tree for Species")
+text(tree.outbreaks, use.n=TRUE, all=TRUE, cex=.6)
+```
+
+As can be seen in the tree displayed above, the only sorting criteria is being used to differentiate any of the species is Food. This occurs at the first split of the 
+tree in which Scombroid toxin producing bacteria are found on the terminal node to the right and the rest to the left. In following the left hand branch, it can be seen 
+that every terminal node classifies the species as Other, regardless of the parameter used. Overall, this basic decision tree does not work well, as it is predicting that
+almost each case of food poisoning is caused by the group "Other". As 13811 of the 19119 observations are categorized into the "Other" category, this is indicative that 
+the data is unbalanced, and in part explains the lack of predictive capability. 
+```{r}
+###Use another algorithm to see if the basic tree gets any better
+
+set.seed(1)
+dt_rout <- rpart(filterSpecies ~ ., data=dt_train, method="class", control = list(maxdepth = 4) )
+rout_pred = predict(dt_rout, newdata=dt_test,type = "class")
+cm2 = confusionMatrix( rout_pred, dt_test$filterSpecies)
+print('Overall: ')
+cm2$overall
+print('Class: ')
+cm2$byClass
+
+#it is the same
+
+```
+
+A secondary algorithm whith the same principles and capabilities of the first were compared to determine if one would outperform the other. The function used above is 
+that of tree(). The second function used was rpat(). Both functions returned the same accuracy of `r round(cm$overall["Accuracy"]*100, digits=2)`%. 
+
+The depth of the tree was then changed to detrmine if this could increase the predictive capabilities of the tree. Changing the depth of the tree had no impact whatsoever
+on the accuracy, sensitivity, or specificity the tree, neither within class or between. 
+```{r nicematrix}
+confusionMatrixResultDf = data.frame( Depth=numeric(0), Accuracy= numeric(0), Sensitivity=numeric(0), Specificity=numeric(0), Pos.Pred.Value=numeric(0), Neg.Pred.Value=numeric(0), Precision=numeric(0), Recall=numeric(0), F1=numeric(0), Prevalence=numeric(0), Detection.Rate=numeric(0), Detection.Prevalence=numeric(0), Balanced.Accuracy=numeric(0), row.names = NULL )
+
+for (deep in 2:4) {
+  sfit <- rpart(filterSpecies ~ ., data=dt_train, method="class", control = list(maxdepth = deep) )
+  spred = predict(sfit, newdata=dt_test, type="class")
+  # 
+  cm = confusionMatrix(spred, dt_test$filterSpecies) # from caret library
+  # 
+  cmaccu = cm$overall['Accuracy']
+  # print( paste("Total Accuracy = ", cmaccu ) )
+  # 
+  cmt = data.frame(Depth=deep, Accuracy = cmaccu, row.names = NULL ) # initialize a row of the metrics 
+  cmt = cbind( cmt, data.frame( t(cm$byClass) ) ) # the dataframe of the transpose, with k valued added in front
+  confusionMatrixResultDf = rbind(confusionMatrixResultDf, cmt)
+}
+```
+
+```{r, results="asis"}
+xkabledply(confusionMatrixResultDf, "Classification of Food Poisoning Causative Agent")
+```
+
+Below shows the decision of the tree constructed using the rpart() function. Though the accuracy, sensitivity, and specificyt all stayed the same using the different 
+functions, the structure of the tree was changed a bit. This basic rpart() tree has only one split, which separates those classified as Scombroid toxin producing bacteria
+and the Others. This is the same split as the tree produced by the tree() function, but without the additional branches and nodes produced by the tree() tree. This tree 
+also gives us easy insight as to which food item separated those into which categories. Any item that was listed as Beef, Chicken, Egg, Fruit, Pork, Vegetarian, or Others
+was classified into the Others category of Species. Any illness that was said to have been caused by Fish was then categorized as to being caused by a Scrombroid toxin 
+producing bacteria. As Scrombroid toxin is caused by a bacteria that grows in fish, this is actually a separator that worked somewhat well (80.4%). 
+```{r plot}
+
+fancyRpartPlot(dt_rout)
+
+```
+
+Pruning of the tree did not appear to increase the accuracy at all. This can be seen as the tree produced is an exact replica as that seen above. To summarize, a basic 
+decision tree does not model the data set well, resulting in an accuracy of 41.3%. 
+```{r prune, results=FALSE}
+#prune the tree 
+dt_rout_prune <- prune(dt_rout, cp = dt_rout$cptable[2,"CP"])
+
+
+# plot the pruned tree 
+#fancyRpartPlot(dt_rout_prune)
+
+```
+
+## Random Forest
+
+The results of running random forest classification on our cleaned dataset fare much better than both KNN and decision tree classification. The error rate varied only 
+slightly with different values of mtry (number of variables tried at each split of the tree), with an mtry value of 1 yielding the smallest error rate of 55.1%. This 
+means that by using random forest, we can correctly predict the causative agent in foodborne disease outbreaks 44.9% of the time. As visualized in the confusion matrix, 
+the majority of species were classified into “other,” with most true-positive values for species being zero. However, the Norovirus, Scombroid toxin and Salmonella 
+species possessed the highest true-positive values aside from “other,” with values of 587, 217 and 213, respectively. Using random forest, the predictions we can make are
+that in future foodborne disease outbreaks, the likely group of causative agents will include Norovirus, Scombroid toxin and Salmonella. However, because many species 
+were grouped into “other,” there are bound to be other causative agents that are likely to be present. The high number of factors for the food and species variables 
+forced us to group data manually, since the models we desired to use will not run in R with variables possessing greater than 32 levels. Manually grouping the nearly 
+3,200 levels in the food feature proved very difficult and resulted in a majority of observations being grouped into other. This is likely due to the fact that much of 
+this data was originally hand-entered and very messy.
+```{r rf, include = T}
+loadPkg('randomForest')
+
+set.seed(100)
+
+# Training conducted using 3:1 training to testing ratio (without replacement)
+train <- sample(nrow(model_data), 0.75*nrow(model_data), replace = FALSE)
+
+train_set <- model_data[train,]
+valid_set <- model_data[-train,]
+
+summary(valid_set)
+# summary(train_set)
+
+rf <- randomForest(filterSpecies ~., data = train_set, mtry = 1, importance = TRUE)
+
+rf
+
+pred = predict(rf, newdata=valid_set[, !(colnames(valid_set) == "filterSpecies")])
+
+# cm = table(valid_set[, "filterSpecies"], pred)
+
+# cm
+```
+
+```{r, include=FALSE}
+# unloadPkg(???)
+#unloadPkg(knitr)
+##unloadPkg(tidyverse)
+#unloadPkg(ggplot2)
+#unloadPkg(stringr)
+#unloadPkg(maps)
+#unloadPkg(mapdata)
+#unloadPkg(usmap)
+#unloadPkg(tree)
+#unloadPkg(caret) 
+#unloadPkg(readr)
+#unloadPkg(car)
+#unloadPkg(rpart)
+#unloadPkg(rattle)
+#unloadPkg(xtable)
+#unloadPkg(kableExtra)
+#unloadPkg(stringi)
+```
+
+## Limitations of the Data
+
+There were a variety of factors associated with the low accuracy of the models. First and foremost, there were simply too many levels to each variable. Attempting to 
+group the Food, States, and Species was a difficult task. Each pathogen is unique and grouping them into only a few categories greatly increased error. The same occurred 
+with the states. The states were grouped by climate, which is associated with the types of food outbreaks that occur. However, climate AND location (west coast versus 
+east coast, etc.) are important when indicating whether it is likely to be one causative agent or another. Grouping the food by category was very difficult. There were 
+thousands of variations of foods, as they were specific to the individual. Though the food is very important in determining causative agent (i.e. Salmonella grows on 
+chicken), the environment of the food is also important. For instance, though there isn't anything specific in potato salad that would clue you in to food poisoning, the 
+fact that potato salad is often eaten at picnics where people leave food out for hours is a major variable. Additionally, Staphylococcus aureus and Shigella are both 
+organisms that come from preparing food with dirty hands. So, food that is often prepared by hand, and not just the fact that it may be fish or chicken, is imporant. 
+Because of these reasons, the food grouping made it very difficult to group the data. Increasing the number of groups to the maximum number of levels allows (32) or to 
+use a different method of grouping may have increased the accuracy. 
+
+## Conclusion
+
+To recap, our SMART question was the following:
+
+How can we predict the causative agent (species) in foodborne disease outbreaks?
+
+The results of our research and model building suggest that using random forest classification is our best bet for predicting the species in foodborne disease outbreaks. 
+Running random forest on our cleaned dataset with an mtry value of 1 (number of variables tried at each split of the tree) returned the highest accuracy rating (and 
+consequently, the lowest error rate) with a value of 44.9%. The overall accuracy ratings attained from running the k-nearest neighbors algorithm and decision tree 
+classification on our dataset are 38.5% and 41.3%. Although the accuracy score of KNN rose upon applying greater values of k, the risk of underfitting and an increase of 
+bias led us to keep k at a value of 5; the comparative increase in accuracy at each value of k greater than 5 was only 0.6%. Additionally, KNN and decision tree returned 
+oddly specific results, predicting the Scombroid toxin with between 60% and 80% accuracy and all other species with much lower (usually near-zero) accuracy. These 
+results, combined with the fact that all three models pooled the large majority of species into the “other” category, led us to choose random forest for stability. 
+Additional information that would help improve our model would be a better grouping of observations for the features whose data contained more than 32 levels. Although 
+the work done to group observations was exhaustive and well-done, there is only so much we can do to classify the nearly 20,000 observations into 32 groups. By better 
+grouping the observations, there would likely be less data pooled into the “other” category and we would receive greater accuracy and more interpretive results in all 
+three models used in this project. We would be able to better-understand the causative agents that are most likely to be present in future disease outbreaks. As it 
+stands, due to the low nature of our models’ results they are somewhat unreliable due to the low accuracy scores and high percentage of classifications into “other.”
+
+
+## References
+
+Climate Data For Cities Worldwide. Climate-Data.org. https://en.climate-data.org/
+
+James, G., Witten, D., Hastie, T., & Tibshirani, R. (2013). An introduction to statistical learning: with applications in R. New York, NY: Springer Science.
+
+Koppen Climate Map of the United States. Plant Maps. https://www.plantmaps.com/koppen-climate-classification-map-united-states.php
+
+“Foodborne Illness Outbreak Database - Sponsored by MarlerClark.” Outbreak Details, www.outbreakdatabase.com/details/taco-bell-restaurants-lettuce-2006/.
+
+INFOSAN. “Escherichia Coli O157:H7 Outbreak in Spinach.”  Food Safety Implications, 12 Feb. 2007, www.who.int/foodsafety/fs_management/No_01_spinach_Feb06_en.pdf.
