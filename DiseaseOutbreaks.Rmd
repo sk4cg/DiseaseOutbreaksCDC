@@ -1,6 +1,6 @@
 ---
 title: "DiseaseOutbreaks"
-author: "Wasted Potential: Sneha, RyeAnne, Yuqi, Ben"
+author: "Wasted Potential: Sneha Kuchipudi, RyeAnne Ricker, Yuqi Chen, Benjamin Lee"
 date: "4/2/2020"
 output:
   html_document:
@@ -14,20 +14,13 @@ output:
     toc_depth: '3'
 ---
 
-```{r setup, include=FALSE}
-# some of common options (and the defaults) are: 
-# include=T, eval=T, echo=T, results='hide'/'asis',..., collapse=F, warning=T, message=T, error=T, cache=T, fig.width=6, fig.height=4, fig.dim=c(6,4) #inches, fig.align='left'/'center','right', 
-# knitr::opts_chunk$set(warning = F, results = 'markup', message = F)
+```{r setup, include = F}
 knitr::opts_chunk$set(warning = F, results = 'hide', message = F)
-# knitr::opts_chunk$set(include = F)
-# knitr::opts_chunk$set(echo = TRUE)
+
 options(scientific=T, digits = 3) 
-# options(scipen=9, digits = 3) 
-# ‘scipen’: integer. A penalty to be applied when deciding to print numeric values in fixed or exponential notation.  Positive values bias towards fixed and negative towards scientific notation: fixed notation will be preferred unless it is more than ‘scipen’ digits wider.
-# use scipen=999 to prevent scientific notation at all times
 ```
 
-```{r basic, include=F}
+```{r basic, include = F}
 # use this function to conveniently load libraries and work smoothly with knittingy
 # can add quietly=T option to the require() function
 loadPkg = function(pkg, character.only = FALSE) { 
@@ -51,9 +44,6 @@ loadPkg(rattle)
 loadPkg(xtable)
 loadPkg(kableExtra)
 loadPkg(stringi)
-
-
-
 
 # unload/detact package when done using it
 unloadPkg = function(pkg, character.only = FALSE) { 
@@ -134,10 +124,12 @@ xkablevif = function(model, title="VIFs of the model", digits = 3, pos="left", b
 
 ## Pre-processing and Summary of the Dataset
 
-Upon reading in our dataset, the variable types were conveniently all correct. Our categorical variables are all factors and our numerical features (illnesses, 
-hospitalizations and fatalities) and year variable are all of type “int.” The number of observations in our dataset is 19,119 and the number of variables is 12. 
+Upon reading in our dataset, the variable types were conveniently all correct. Our categorical variables 
+are all factors and our numerical features (illnesses, hospitalizations and fatalities) and year variable 
+are all of type “int.” The number of observations in our dataset is 19,119 and the number of variables is 12. 
 
-Here, the data is read in as 'outbreaks.' Notice that there are two read-ins; one is for use in pre-processing and model building, while the other is used for EDA.
+Here, the data is read in as 'outbreaks.' Notice that there are two read-ins; one is for use in pre-processing 
+and model building, while the other is used for EDA.
 ```{r reading in data, include = T}
 outbreaks <- read.csv('outbreaks.csv')
 
@@ -152,10 +144,11 @@ str(outbreak)
 
 #### Missing Data
 
-After skimming through the data set, We noticed that several predictors contained a large number of missing values. It is important to note that the missing 
-values are denoted as '' instead of 'NA.' The largest occurances of missing values were in Serotype/Genotype (15,212 points, or 79.56% of datatset) and 
-Ingredient (17,243 points, or 90.18% of dataset). Food contained 8,963 missing values (46.88% of dataset). Species and Status also contained a respectable 
-number of missing values (6,619 points, or 34.62% of dataset).
+After skimming through the data set, We noticed that several predictors contained a large number of missing 
+values. It is important to note that the missing values are denoted as '' instead of 'NA.' The largest 
+occurances of missing values were in Serotype/Genotype (15,212 points, or 79.56% of datatset) and Ingredient 
+(17,243 points, or 90.18% of dataset). Food contained 8,963 missing values (46.88% of dataset). Species and 
+Status also contained a respectable number of missing values (6,619 points, or 34.62% of dataset).
 ```{r exploring the data, include = T}
 year_na <- subset(outbreaks, Year == '') # 0 missing values
 
@@ -182,7 +175,8 @@ fatalities_na <- subset(outbreaks, Fatalities == '') # 0 missing values
 
 #### Outlier Discovery
 
-After constructing boxplots on the numerical variables (excluding year), outliers were discovered in illnesses, hospitalizations and fatalities.
+After constructing boxplots on the numerical variables (excluding year), outliers were discovered in 
+illnesses, hospitalizations and fatalities.
 
 • Illnesses: with an IQR of 24, there are technically 1,782 outliers. 
 
@@ -190,11 +184,13 @@ After constructing boxplots on the numerical variables (excluding year), outlier
 
 • Fatalities: with an IQR of 0, there are technically 176 outliers. 
 
-However, these outliers are significant and should not be excluded. Outliers can help explain what species of foodborne illnesses are the 
-most destructive, or what predictors are especially harmful (i.e. State, Location). For example, in the case of illnesses the largest 
-observation was recorded in a multistate area at a restaurant/private home residence/cateering service and came from salmonella. Perhaps 
-the location has something to do with why so many people got sick. Or, salmonella could be an especially dangerous disease. Excluding this 
-outlier could produce harmful effects and cloud judgement on what factors predict the causitive agent in foodborne disease outbreaks. 
+However, these outliers are significant and should not be excluded. Outliers can help explain what 
+species of foodborne illnesses are the most destructive, or what predictors are especially harmful 
+(i.e. State, Location). For example, in the case of illnesses the largest observation was recorded 
+in a multistate area at a restaurant/private home residence/cateering service and came from salmonella. 
+Perhaps the location has something to do with why so many people got sick. Or, salmonella could be an 
+especially dangerous disease. Excluding this outlier could produce harmful effects and cloud judgement 
+on what factors predict the causitive agent in foodborne disease outbreaks. 
 ```{r graphs, include = T}
 illnesses_bp <- boxplot(outbreaks$Illnesses, main = "Boxplot of Illnesses", ylab = "Number of Illnesses")
 
@@ -273,7 +269,10 @@ plot_usmap(data=ill2015, values="illness", color=1, labels = T) +
 
 ```
 
-From the USMAP above, we can clearly see that the maximum number of illnesses has been lowered to 80 from 1998 to 2015. In 1998, the North Dakota has maximum illness around 300; however, in 2004, Montana and Utah has maximum illnesses around 80. In 2010, only North and South Carolina have maximum illnesses around 50, and South Carolina's illness has been backed to normal (under 20) in 2015. 
+From the USMAP above, we can clearly see that the maximum number of illnesses has been lowered to 80 from 
+1998 to 2015. In 1998, the North Dakota has maximum illness around 300; however, in 2004, Montana and Utah 
+has maximum illnesses around 80. In 2010, only North and South Carolina have maximum illnesses around 50, 
+and South Carolina's illness has been backed to normal (under 20) in 2015. 
 
 #### The general trend of foodborne illnesses over the years and months
 ```{r}
@@ -310,10 +309,15 @@ outbreak_month %>%
 
 ```
 
-The first plot above shows the Foodborne illnesses changed by month. We can clearly see that the foodborn illnesses outbreks happened during the months March to June, and November to December.  
+The first plot above shows the Foodborne illnesses changed by month. We can clearly see that the foodborne 
+illnesses outbreaks happened during the months March to June, and November to December.  
 
-The second plot shows the foodborne illnesses changed by year. We noticed that the general trend of foodborne illnesses has been dereasing from the year 1998 to 2009, but it starts to have constant values from 2010 to 2015 which means there is no such significant increase in illness outbreaks during that 6 years. We noticed that in late 2003 and 2006 the illnesses tended to be maximized which could indicate the foodborn outbreaks events happened in that 2 years: hepatitis outbreak in late 2003 from Chi-Chi's restaurant and over people suffered from the lettuce and organic spinach during 2006 by Taco Bell and Natural Selection Foods.
-
+The second plot shows the foodborne illnesses changed by year. We noticed that the general trend of foodborne 
+illnesses has been decreasing from the year 1998 to 2009, but it starts to have constant values from 2010 to 
+2015 which means there is no such significant increase in illness outbreaks during that 6 years. We noticed 
+that in late 2003 and 2006 the illnesses tended to be maximized which could indicate the foodborne outbreaks 
+events happened in that 2 years: hepatitis outbreak in late 2003 from Chi-Chi's restaurant and over people 
+suffered from the lettuce and organic spinach during 2006 by Taco Bell and Natural Selection Foods.
 
 #### Time series plot of illnesses caused by top4 species
 ```{r}
@@ -329,35 +333,45 @@ outbreak %>% filter(Species %in% c(
   geom_line()
 ```
 
-The above plot shows the time series plot of illnesses caused by top4 species. We can clearly see that the Norovirus genogroup I had the largest number of foodborne illnesses outbreaks from 1998 to 2009. After 2009, Salmonella enterica and Norovirus genogroup II have nearly same number of illnesses. But generally speaking, Norovirus causes the highest number of foodborne illnesses outbreaks from 1998 to 2015.
-
+The above plot shows the time series plot of illnesses caused by top4 species. We can clearly see that the 
+Norovirus genogroup I had the largest number of foodborne illnesses outbreaks from 1998 to 2009. After 2009, 
+Salmonella enterica and Norovirus genogroup II have nearly same number of illnesses. But generally speaking, 
+Norovirus causes the highest number of foodborne illnesses outbreaks from 1998 to 2015.
 
 ## Model Building
 
-
 #### Preprocessing before model building 
 
-Before building our models, we needed to do some additional preprocessing to our data in order to get it ready for building informative models. We decided that we would 
-focus on 3 different predictor variables: `Month`, `Food`, and `State`. And hopefully these features would considerably aid us in training models to predict our target 
-variable, `Species`.  At this stage in our analysis the dataset, provided us with `Month`  as a factor variable with 12 levels, `State` as a factor variable with 55 
-levels (it included DC and US territories in addition to the 50 states), `Food` as a factor variable with 3128 levels, and `Species` as a factor variable with 202 levels. 
-We believe that the datapoints for Food and Species contained hand entered variable (rather than choosing from a pre-existing list) which opened it up to a lot of 
-variability in responses and would make it harder for the models to classify with so many levels. Additionally, in order to create the decision trees there was a limit of
-32 levels and the as is data did not fit those requirements. Thus, we needed to filter down each variable that had a high amount of levels and filter it into more 
-manageable distinctions. While we do recognize that this added bias to our models and especially disadvantaged the variables that were less common in our dataset (as they
-were put in the "Other" category), we were hoping it would still provide us with meaningful models that were able to classify Species. 
+Before building our models, we needed to do some additional preprocessing to our data in order to get it ready 
+for building informative models. We decided that we would focus on 3 different predictor variables: `Month`, 
+`Food`, and `State`. And hopefully these features would considerably aid us in training models to predict our 
+target variable, `Species`.  At this stage in our analysis the dataset, provided us with `Month`  as a factor 
+variable with 12 levels, `State` as a factor variable with 55 levels (it included DC and US territories in 
+addition to the 50 states), `Food` as a factor variable with 3128 levels, and `Species` as a factor variable 
+with 202 levels. We believe that the datapoints for Food and Species contained hand entered variable (rather 
+than choosing from a pre-existing list) which opened it up to a lot of variability in responses and would make 
+it harder for the models to classify with so many levels. Additionally, in order to create the decision trees 
+there was a limit of 32 levels and the as is data did not fit those requirements. Thus, we needed to filter 
+down each variable that had a high amount of levels and filter it into more manageable distinctions. While we 
+do recognize that this added bias to our models and especially disadvantaged the variables that were less 
+common in our dataset (as they were put in the "Other" category), we were hoping it would still provide us with 
+meaningful models that were able to classify Species. 
 
-I chose not to filter down the `Month` variable as I felt it was not necessary and that it would be more informative to keep it as is than to make up a reasoning on how 
-to group them. To filter the variable I used a function that checked each data point in a given feature for different regex expressions that I specified. For instance for
-the Food variable I checked for data points that contained "fish", "salmon", or "tuna" and if they contained any of those regex expressions they would be classified into 
-the "Fish" level, and so on. For Food I chose overarching categories of different types of food such as chicken, vegetarian, pork, beef etc. For the Species variable I 
-filtered the levels by choosing the most prevalent species in the dataset and choosng those as levels, and the rest were classified into the Other category. And for the 
-States, I used the Koppen climate classification which for the US and its territories, encompasses 4 different climate levels: Tropical, Dry (Arid and Semiarid), 
-Temperate (Mesothermal), and Continental (Microthermal). Some states do have high variation in climate regions, and for those states I chose the level type that 
-encompassed the largest percentage (majority) of land in the state. I also included an "other" level to catch any mis-entered data. 
+I chose not to filter down the `Month` variable as I felt it was not necessary and that it would be more 
+informative to keep it as is than to make up a reasoning on how to group them. To filter the variable I used a 
+function that checked each data point in a given feature for different regex expressions that I specified. For 
+instance for the Food variable I checked for data points that contained "fish", "salmon", or "tuna" and if they 
+contained any of those regex expressions they would be classified into the "Fish" level, and so on. For Food I 
+chose overarching categories of different types of food such as chicken, vegetarian, pork, beef etc. For the 
+Species variable I filtered the levels by choosing the most prevalent species in the dataset and choosng those 
+as levels, and the rest were classified into the Other category. And for the States, I used the Koppen climate 
+classification which for the US and its territories, encompasses 4 different climate levels: Tropical, Dry 
+(Arid and Semiarid), Temperate (Mesothermal), and Continental (Microthermal). Some states do have high variation 
+in climate regions, and for those states I chose the level type that encompassed the largest percentage (majority) 
+of land in the state. I also included an "other" level to catch any mis-entered data. 
 
-After preprocessing and filtering the data, the `Food` variable had 8 levels, the `Species` variable had 10 levels, the `State` variable had 5 levels, and the `Month` 
-variable which was not altered had 12 levels. 
+After preprocessing and filtering the data, the `Food` variable had 8 levels, the `Species` variable had 10 levels, 
+the `State` variable had 5 levels, and the `Month` variable which was not altered had 12 levels. 
 ```{r}
 foodCatXform <- function(val) { 
   igCase = TRUE
@@ -570,7 +584,8 @@ loadPkg(stringi)
 #xkablesummary(model_data)
 ```
 
-We can see from the histograms below that each of the feature variable are not normally distributed. The Species variable has a left skew. 
+We can see from the histograms below that each of the feature variable are not normally distributed. The Species 
+variable has a left skew. 
 ```{r}
 loadPkg(psych)
 pairs.panels(model_data, 
@@ -582,8 +597,9 @@ pairs.panels(model_data,
 unloadPkg(psych)
 ```
 
-First, I needed to do some additional preprocessing before executing KNN. The R KNN function requires numerical data, and since our feature variables were all categorical
-at this point, I chose to map each factor level to a number and then run KNN. It was not necessary to map the Species variable as it was the target variable. 
+First, I needed to do some additional preprocessing before executing KNN. The R KNN function requires numerical 
+data, and since our feature variables were all categorical at this point, I chose to map each factor level to a 
+number and then run KNN. It was not necessary to map the Species variable as it was the target variable. 
 ```{r KNNpreprocess}
 num_model <- model_data
 loadPkg(plyr)
@@ -619,8 +635,9 @@ zmapped
 
 ```
 
-Next, I used the sample function to split the data 3:1 into 75% training and 15% testing subsets, separated the X-variables and the y-labels and set a constant seed value
-in addition to scaling and centering the x-variables. Scaling and centering the x-variables allows KNN to calculate distances in a more meaningful manner 
+Next, I used the sample function to split the data 3:1 into 75% training and 15% testing subsets, separated the 
+X-variables and the y-labels and set a constant seed value in addition to scaling and centering the x-variables. 
+Scaling and centering the x-variables allows KNN to calculate distances in a more meaningful manner.
 ```{r}
 #scale
 zmapped <- as.data.frame(scale(zmapped, center = TRUE, scale = TRUE))
@@ -636,10 +653,12 @@ zmapped_ytest <- mapped[splitarray==2,4] # 1-D array
 #length(zmapped_ytest)
 ```
 
-We ended up with `r length(zmapped_ytrain)` data points in the train set, and `r length(zmapped_ytest)` data points in the test set.
+We ended up with `r length(zmapped_ytrain)` data points in the train set, and `r length(zmapped_ytest)` data 
+points in the test set.
 
-Next, I ran knn and initially looped through the k-values from 3 to 21, but here we will show the confusion matrix from 3 to 7 for a better visual representation and 
-looked at the accuracy, precision, recall, F1 and other metrics using the confusion matrix to determine the best k value. 
+Next, I ran knn and initially looped through the k-values from 3 to 21, but here we will show the confusion matrix 
+from 3 to 7 for a better visual representation and looked at the accuracy, precision, recall, F1 and other metrics 
+using the confusion matrix to determine the best k value. 
 ```{r results="hide"}
 loadPkg(gmodels)
 loadPkg(FNN)
@@ -723,31 +742,37 @@ m
 
 ```
 
-I decided the best k value for KNN was k=5 which gave us an overall accuracy of 38.5%. This was due to the fact that as k reached k=5, the accuracy had higher jumps in 
-improvement. For example between k=3 and k=4, there was a 5% jump in accuracy and between k=4 and k=5 there was a 2.3% jump in accuracy. And after k=5, with each increase
-in k, accuracy only increased by around 0.6% each time, there wasnt much improvement. Eventually if I chose a very large k value that would bring the accuracy up to 
-around 43% or higher but that would be at the expense of precision. 
+I decided the best k value for KNN was k=5 which gave us an overall accuracy of 38.5%. This was due to the fact 
+that as k reached k=5, the accuracy had higher jumps in improvement. For example between k=3 and k=4, there was 
+a 5% jump in accuracy and between k=4 and k=5 there was a 2.3% jump in accuracy. And after k=5, with each increase
+in k, accuracy only increased by around 0.6% each time, there wasnt much improvement. Eventually if I chose a very 
+large k value that would bring the accuracy up to around 43% or higher but that would be at the expense of precision. 
 
-If we look at the k=5 value in the confusion matrix, there are a few things I noticed that we would like to highlight. For balanced accuracy the Ciguatoxin came at 72.7% 
-and Scombroid toxin has 63.8% and the rest of the features had roughly 50% balanced accuracy. And for the F1 scores, Ciguatoxin had 41.5% and Norovirus has 43.9% and 
-Scombroid toxin has 32.9%. Looking at these values especially, we were able to conclude that KNN was able to classify Ciguatoxin and Scombroid toxin the most reliably and
-had trouble with the other causative agents but did have some success. 
+If we look at the k=5 value in the confusion matrix, there are a few things I noticed that we would like to highlight. 
+For balanced accuracy the Ciguatoxin came at 72.7% and Scombroid toxin has 63.8% and the rest of the features had roughly 
+50% balanced accuracy. And for the F1 scores, Ciguatoxin had 41.5% and Norovirus has 43.9% and Scombroid toxin has 32.9%. 
+Looking at these values especially, we were able to conclude that KNN was able to classify Ciguatoxin and Scombroid toxin 
+the most reliably and had trouble with the other causative agents but did have some success. 
 
 ## Decision Trees
 
-Decision trees are easily understood and interpreted. They are also easily able to use both quantitative and qualitative variables without having to make dummy variables.
-Here, both a basic decision tree and a Random Forest were used to model the data. A basic decision tree was used first, then a Random Forest, which makes use of the 
-bootstrap method. Additionally, the constructed trees in the forest are decorrelated by using only a random sample of the predictors and not all of them. (James, 2013)
+Decision trees are easily understood and interpreted. They are also easily able to use both quantitative and qualitative 
+variables without having to make dummy variables. Here, both a basic decision tree and a Random Forest were used to model 
+the data. A basic decision tree was used first, then a Random Forest, which makes use of the bootstrap method. Additionally, 
+the constructed trees in the forest are decorrelated by using only a random sample of the predictors and not all of them. 
+(James, 2013)
 
 **The Data Used**
-Ultimately, there were 12 species in the response; Bacillus cereus, Campylobacter jejuni, Ciguatoxin (from Gambierdiscus toxicus), Clostridium perfringens, Escherichia 
-coli, Norovirus, Salmonella, Scombroid toxin (produced by a variety of bacteria growing within fish), Staphylococcus, and the rest grouped as Others. As for the predictor
-variables, there were 12 levels for months (Jan-Dec), 4 levels set for State (separated by region, as explained above), and 8 levels for the Food; Beef, Chicken, Egg, 
-Fish, Fruit, Pork, Vegetarian, and Other. 
+Ultimately, there were 12 species in the response; Bacillus cereus, Campylobacter jejuni, Ciguatoxin (from Gambierdiscus 
+toxicus), Clostridium perfringens, Escherichia coli, Norovirus, Salmonella, Scombroid toxin (produced by a variety of 
+bacteria growing within fish), Staphylococcus, and the rest grouped as Others. As for the predictor variables, there were 
+12 levels for months (Jan-Dec), 4 levels set for State (separated by region, as explained above), and 8 levels for the 
+Food; Beef, Chicken, Egg, Fish, Fruit, Pork, Vegetarian, and Other. 
 
 **Train-Test split 3:1** 
-As was done in KNN, the data was split into a 3:1 split for training and testing data. The first 75% of the rows were used for training (14339 observations) and the last 
-25% was used for testing (4780 observations). However, because decision trees can classify categorical data, all variables were left as factors. 
+As was done in KNN, the data was split into a 3:1 split for training and testing data. The first 75% of the rows were used 
+for training (14339 observations) and the last 25% was used for testing (4780 observations). However, because decision trees 
+can classify categorical data, all variables were left as factors. 
 ```{r}
 n <- nrow(model_data)
 n_train <- round(0.75 * n) 
@@ -776,30 +801,34 @@ cm$byClass
 
 ```
 
-To start the classification process using a decision tree, a basic decision tree was used. No optimization of parameters was initially done, meaning that all parameters 
-were considered at each split, the size of the forest was at default, and no splitting criterion was set. This basic decision tree had an overall accuracy of only 
-`r round(cm$overall["Accuracy"]*100, digits=2)`%. Additionally, the sensitivity was 0% for all species except Scombroid toxin producing bacteria and those falling into 
-the "Other" category. The sensitivity for The Scombroid toxin producing bacteria was at 80.4%. What this means is that the algorithm was able to correctly identify the 
-Scombroid toxin producing bacteria 80.4% of the time but did not classify the other bacteria (Bacillus, Campylobacter, etc.) correctly. The specificty was at 100% for all
-except those falling into the Scomboid toxin producing bacteria, in which it was 97.6% and those falling into the "Others" category at 5.2%. THis means that the algorithm
-did not incorrectly classify a species into a category that was not meant to go into that category at a rate of 100% for all except Scombroid toxin producing bacteria and
-the others. 
+To start the classification process using a decision tree, a basic decision tree was used. No optimization of parameters was 
+initially done, meaning that all parameters were considered at each split, the size of the forest was at default, and no 
+splitting criterion was set. This basic decision tree had an overall accuracy of only `r round(cm$overall["Accuracy"]*100, digits=2)`%. 
+Additionally, the sensitivity was 0% for all species except Scombroid toxin producing bacteria and those falling into the "Other" 
+category. The sensitivity for The Scombroid toxin producing bacteria was at 80.4%. What this means is that the algorithm was 
+able to correctly identify the Scombroid toxin producing bacteria 80.4% of the time but did not classify the other bacteria 
+(Bacillus, Campylobacter, etc.) correctly. The specificity was at 100% for all except those falling into the Scombroid toxin 
+producing bacteria, in which it was 97.6% and those falling into the "Others" category at 5.2%. This means that the algorithm
+did not incorrectly classify a species into a category that was not meant to go into that category at a rate of 100% for all 
+except Scombroid toxin producing bacteria and the others. 
 
-This indicates that this decision tree does not correctly identify the causative agent (Species) except when the causative agent is a Scombroid toxin producer, in which 
-case it identifies it 80.4% of the time correctly. The combination of low sensitivity and high specificity for most Species, but low specificty for a few, indicates that 
-many of the predictions from this decision tree are getting assigned to the same Species. In looking at the confusion matrix, you can see that almost every prediction is 
-that of the response "Other". 
+This indicates that this decision tree does not correctly identify the causative agent (Species) except when the causative 
+agent is a Scombroid toxin producer, in which case it identifies it 80.4% of the time correctly. The combination of low 
+sensitivity and high specificity for most Species, but low specificity for a few, indicates that many of the predictions from 
+this decision tree are getting assigned to the same Species. In looking at the confusion matrix, you can see that almost every 
+prediction is that of the response "Other".
 ```{r}
 summary(tree.outbreaks)
 plot(tree.outbreaks, uniform=TRUE, main="Classification Tree for Species")
 text(tree.outbreaks, use.n=TRUE, all=TRUE, cex=.6)
 ```
 
-As can be seen in the tree displayed above, the only sorting criteria is being used to differentiate any of the species is Food. This occurs at the first split of the 
-tree in which Scombroid toxin producing bacteria are found on the terminal node to the right and the rest to the left. In following the left hand branch, it can be seen 
-that every terminal node classifies the species as Other, regardless of the parameter used. Overall, this basic decision tree does not work well, as it is predicting that
-almost each case of food poisoning is caused by the group "Other". As 13811 of the 19119 observations are categorized into the "Other" category, this is indicative that 
-the data is unbalanced, and in part explains the lack of predictive capability. 
+As can be seen in the tree displayed above, the only sorting criteria is being used to differentiate any of the species is Food. 
+This occurs at the first split of the tree in which Scombroid toxin producing bacteria are found on the terminal node to the 
+right and the rest to the left. In following the left hand branch, it can be seen that every terminal node classifies the species 
+as Other, regardless of the parameter used. Overall, this basic decision tree does not work well, as it is predicting that almost 
+each case of food poisoning is caused by the group "Other". As 13811 of the 19119 observations are categorized into the "Other" 
+category, this is indicative that the data is unbalanced, and in part explains the lack of predictive capability. 
 ```{r}
 ###Use another algorithm to see if the basic tree gets any better
 
@@ -816,11 +845,12 @@ cm2$byClass
 
 ```
 
-A secondary algorithm whith the same principles and capabilities of the first were compared to determine if one would outperform the other. The function used above is 
-that of tree(). The second function used was rpat(). Both functions returned the same accuracy of `r round(cm$overall["Accuracy"]*100, digits=2)`%. 
+A secondary algorithm with the same principles and capabilities of the first were compared to determine if one would outperform 
+the other. The function used above is that of tree(). The second function used was rpat(). Both functions returned the same accuracy 
+of `r round(cm$overall["Accuracy"]*100, digits=2)`%. 
 
-The depth of the tree was then changed to detrmine if this could increase the predictive capabilities of the tree. Changing the depth of the tree had no impact whatsoever
-on the accuracy, sensitivity, or specificity the tree, neither within class or between. 
+The depth of the tree was then changed to determine if this could increase the predictive capabilities of the tree. Changing the 
+depth of the tree had no impact whatsoever on the accuracy, sensitivity, or specificity the tree, neither within class or between.
 ```{r nicematrix}
 confusionMatrixResultDf = data.frame( Depth=numeric(0), Accuracy= numeric(0), Sensitivity=numeric(0), Specificity=numeric(0), Pos.Pred.Value=numeric(0), Neg.Pred.Value=numeric(0), Precision=numeric(0), Recall=numeric(0), F1=numeric(0), Prevalence=numeric(0), Detection.Rate=numeric(0), Detection.Prevalence=numeric(0), Balanced.Accuracy=numeric(0), row.names = NULL )
 
@@ -843,20 +873,22 @@ for (deep in 2:4) {
 xkabledply(confusionMatrixResultDf, "Classification of Food Poisoning Causative Agent")
 ```
 
-Below shows the decision of the tree constructed using the rpart() function. Though the accuracy, sensitivity, and specificyt all stayed the same using the different 
-functions, the structure of the tree was changed a bit. This basic rpart() tree has only one split, which separates those classified as Scombroid toxin producing bacteria
-and the Others. This is the same split as the tree produced by the tree() function, but without the additional branches and nodes produced by the tree() tree. This tree 
-also gives us easy insight as to which food item separated those into which categories. Any item that was listed as Beef, Chicken, Egg, Fruit, Pork, Vegetarian, or Others
-was classified into the Others category of Species. Any illness that was said to have been caused by Fish was then categorized as to being caused by a Scrombroid toxin 
-producing bacteria. As Scrombroid toxin is caused by a bacteria that grows in fish, this is actually a separator that worked somewhat well (80.4%). 
+Below shows the decision of the tree constructed using the rpart() function. Though the accuracy, sensitivity, and specificity 
+all stayed the same using the different functions, the structure of the tree was changed a bit. This basic rpart() tree has 
+only one split, which separates those classified as Scombroid toxin producing bacteria and the Others. This is the same split 
+as the tree produced by the tree() function, but without the additional branches and nodes produced by the tree() tree. This tree 
+also gives us easy insight as to which food item separated those into which categories. Any item that was listed as Beef, Chicken, 
+Egg, Fruit, Pork, Vegetarian, or Others was classified into the Others category of Species. Any illness that was said to have been 
+caused by Fish was then categorized as to being caused by a Scombroid toxin producing bacteria. As Scombroid toxin is caused by a 
+bacteria that grows in fish, this is actually a separator that worked somewhat well (80.4%).
 ```{r plot}
 
 fancyRpartPlot(dt_rout)
 
 ```
 
-Pruning of the tree did not appear to increase the accuracy at all. This can be seen as the tree produced is an exact replica as that seen above. To summarize, a basic 
-decision tree does not model the data set well, resulting in an accuracy of 41.3%. 
+Pruning of the tree did not appear to increase the accuracy at all. This can be seen as the tree produced is an exact replica as 
+that seen above. To summarize, a basic decision tree does not model the data set well, resulting in an accuracy of 41.3%. 
 ```{r prune, results=FALSE}
 #prune the tree 
 dt_rout_prune <- prune(dt_rout, cp = dt_rout$cptable[2,"CP"])
@@ -869,16 +901,19 @@ dt_rout_prune <- prune(dt_rout, cp = dt_rout$cptable[2,"CP"])
 
 ## Random Forest
 
-The results of running random forest classification on our cleaned dataset fare much better than both KNN and decision tree classification. The error rate varied only 
-slightly with different values of mtry (number of variables tried at each split of the tree), with an mtry value of 1 yielding the smallest error rate of 55.1%. This 
-means that by using random forest, we can correctly predict the causative agent in foodborne disease outbreaks 44.9% of the time. As visualized in the confusion matrix, 
-the majority of species were classified into “other,” with most true-positive values for species being zero. However, the Norovirus, Scombroid toxin and Salmonella 
-species possessed the highest true-positive values aside from “other,” with values of 587, 217 and 213, respectively. Using random forest, the predictions we can make are
-that in future foodborne disease outbreaks, the likely group of causative agents will include Norovirus, Scombroid toxin and Salmonella. However, because many species 
-were grouped into “other,” there are bound to be other causative agents that are likely to be present. The high number of factors for the food and species variables 
-forced us to group data manually, since the models we desired to use will not run in R with variables possessing greater than 32 levels. Manually grouping the nearly 
-3,200 levels in the food feature proved very difficult and resulted in a majority of observations being grouped into other. This is likely due to the fact that much of 
-this data was originally hand-entered and very messy.
+The results of running random forest classification on our cleaned dataset fare much better than both KNN and decision tree 
+classification. The error rate varied only slightly with different values of mtry (number of variables tried at each split 
+of the tree), with an mtry value of 1 yielding the smallest error rate of 55.1%. This means that by using random forest, we 
+can correctly predict the causative agent in foodborne disease outbreaks 44.9% of the time. As visualized in the confusion matrix, 
+the majority of species were classified into “other,” with most true-positive values for species being zero. However, the 
+Norovirus, Scombroid toxin and Salmonella species possessed the highest true-positive values aside from “other,” with values of 
+587, 217 and 213, respectively. Using random forest, the predictions we can make are that in future foodborne disease outbreaks, 
+the likely group of causative agents will include Norovirus, Scombroid toxin and Salmonella. However, because many species were 
+grouped into “other,” there are bound to be other causative agents that are likely to be present. The high number of factors for 
+the food and species variables forced us to group data manually, since the models we desired to use will not run in R with variables 
+possessing greater than 32 levels. Manually grouping the nearly 3,200 levels in the food feature proved very difficult and resulted 
+in a majority of observations being grouped into other. This is likely due to the fact that much of this data was originally 
+hand-entered and very messy.
 ```{r rf, include = T}
 loadPkg('randomForest')
 
@@ -926,16 +961,20 @@ pred = predict(rf, newdata=valid_set[, !(colnames(valid_set) == "filterSpecies")
 
 ## Limitations of the Data
 
-There were a variety of factors associated with the low accuracy of the models. First and foremost, there were simply too many levels to each variable. Attempting to 
-group the Food, States, and Species was a difficult task. Each pathogen is unique and grouping them into only a few categories greatly increased error. The same occurred 
-with the states. The states were grouped by climate, which is associated with the types of food outbreaks that occur. However, climate AND location (west coast versus 
-east coast, etc.) are important when indicating whether it is likely to be one causative agent or another. Grouping the food by category was very difficult. There were 
-thousands of variations of foods, as they were specific to the individual. Though the food is very important in determining causative agent (i.e. Salmonella grows on 
-chicken), the environment of the food is also important. For instance, though there isn't anything specific in potato salad that would clue you in to food poisoning, the 
-fact that potato salad is often eaten at picnics where people leave food out for hours is a major variable. Additionally, Staphylococcus aureus and Shigella are both 
-organisms that come from preparing food with dirty hands. So, food that is often prepared by hand, and not just the fact that it may be fish or chicken, is imporant. 
-Because of these reasons, the food grouping made it very difficult to group the data. Increasing the number of groups to the maximum number of levels allows (32) or to 
-use a different method of grouping may have increased the accuracy. 
+There were a variety of factors associated with the low accuracy of the models. First and foremost, there were simply 
+too many levels to each variable. Attempting to group the Food, States, and Species was a difficult task. Each pathogen 
+is unique and grouping them into only a few categories greatly increased error. The same occurred with the states. The 
+states were grouped by climate, which is associated with the types of food outbreaks that occur. However, climate AND 
+location (west coast versus east coast, etc.) are important when indicating whether it is likely to be one causative 
+agent or another. Grouping the food by category was very difficult. There were thousands of variations of foods, as 
+they were specific to the individual. Though the food is very important in determining causative agent (i.e. Salmonella 
+grows on chicken), the environment of the food is also important. For instance, though there isn't anything specific 
+in potato salad that would clue you in to food poisoning, the fact that potato salad is often eaten at picnics where 
+people leave food out for hours is a major variable. Additionally, Staphylococcus aureus and Shigella are both organisms 
+that come from preparing food with dirty hands. So, food that is often prepared by hand, and not just the fact that it 
+may be fish or chicken, is important. Because of these reasons, the food grouping made it very difficult to group the 
+data. Increasing the number of groups to the maximum number of levels allows (32) or to use a different method of grouping 
+may have increased the accuracy. 
 
 ## Conclusion
 
@@ -943,24 +982,35 @@ To recap, our SMART question was the following:
 
 How can we predict the causative agent (species) in foodborne disease outbreaks?
 
-The results of our research and model building suggest that using random forest classification is our best bet for predicting the species in foodborne disease outbreaks. 
-Running random forest on our cleaned dataset with an mtry value of 1 (number of variables tried at each split of the tree) returned the highest accuracy rating (and 
-consequently, the lowest error rate) with a value of 44.9%. The overall accuracy ratings attained from running the k-nearest neighbors algorithm and decision tree 
-classification on our dataset are 38.5% and 41.3%. Although the accuracy score of KNN rose upon applying greater values of k, the risk of underfitting and an increase of 
-bias led us to keep k at a value of 5; the comparative increase in accuracy at each value of k greater than 5 was only 0.6%. Additionally, KNN and decision tree returned 
-oddly specific results, predicting the Scombroid toxin with between 60% and 80% accuracy and all other species with much lower (usually near-zero) accuracy. These 
-results, combined with the fact that all three models pooled the large majority of species into the “other” category, led us to choose random forest for stability. 
-Additional information that would help improve our model would be a better grouping of observations for the features whose data contained more than 32 levels. Although 
-the work done to group observations was exhaustive and well-done, there is only so much we can do to classify the nearly 20,000 observations into 32 groups. By better 
-grouping the observations, there would likely be less data pooled into the “other” category and we would receive greater accuracy and more interpretive results in all 
-three models used in this project. We would be able to better-understand the causative agents that are most likely to be present in future disease outbreaks. As it 
-stands, due to the low nature of our models’ results they are somewhat unreliable due to the low accuracy scores and high percentage of classifications into “other.”
-
+The results of our research and model building suggest that using random forest classification is our best bet for 
+predicting the species in foodborne disease outbreaks. Running random forest on our cleaned dataset with an mtry value 
+of 1 (number of variables tried at each split of the tree) returned the highest accuracy rating (and consequently, the 
+lowest error rate) with a value of 44.9%. The overall accuracy ratings attained from running the k-nearest neighbors 
+algorithm and decision tree classification on our dataset are 38.5% and 41.3%. Although the accuracy score of KNN rose 
+upon applying greater values of k, the risk of underfitting and an increase of bias led us to keep k at a value of 5; 
+the comparative increase in accuracy at each value of k greater than 5 was only 0.6%. Additionally, KNN and decision tree 
+returned oddly specific results, predicting the Scombroid toxin with between 60% and 80% accuracy and all other species 
+with much lower (usually near-zero) accuracy. These results, combined with the fact that all three models pooled the 
+large majority of species into the “other” category, led us to choose random forest for stability. Additional information 
+that would help improve our model would be a better grouping of observations for the features whose data contained more 
+than 32 levels. Although the work done to group observations was exhaustive and well-done, there is only so much we can 
+do to classify the nearly 20,000 observations into 32 groups. By better grouping the observations, there would likely be 
+less data pooled into the “other” category and we would receive greater accuracy and more interpretive results in all 
+three models used in this project. We would be able to better-understand the causative agents that are most likely to be 
+present in future disease outbreaks. As it stands, due to the low nature of our models’ results they are somewhat unreliable 
+due to the low accuracy scores and high percentage of classifications into “other.”
 
 ## References
 
 Climate Data For Cities Worldwide. Climate-Data.org. https://en.climate-data.org/
 
-James, G., Witten, D., Hastie, T., & Tibshirani, R. (2013). An introduction to statistical learning: with applications in R. New York, NY: Springer Science.
+James, G., Witten, D., Hastie, T., & Tibshirani, R. (2013). An introduction to statistical learning: with applications in R. New York, NY: 
+Springer Science.
 
 Koppen Climate Map of the United States. Plant Maps. https://www.plantmaps.com/koppen-climate-classification-map-united-states.php
+
+“Foodborne Illness Outbreak Database - Sponsored by MarlerClark.” Outbreak Details, 
+www.outbreakdatabase.com/details/taco-bell-restaurants-lettuce-2006/.
+
+INFOSAN. “Escherichia Coli O157:H7 Outbreak in Spinach.”  Food Safety Implications, 12 Feb. 2007, 
+www.who.int/foodsafety/fs_management/No_01_spinach_Feb06_en.pdf.
