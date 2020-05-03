@@ -273,6 +273,8 @@ plot_usmap(data=ill2015, values="illness", color=1, labels = T) +
 
 ```
 
+From the USMAP above, we can clearly see that the maximum number of illnesses has been lowered to 80 from 1998 to 2015. In 1998, the North Dakota has maximum illness around 300; however, in 2004, Montana and Utah has maximum illnesses around 80. In 2010, only North and South Carolina have maximum illnesses around 50, and South Carolina's illness has been backed to normal (under 20) in 2015. 
+
 #### The general trend of foodborne illnesses over the years and months
 ```{r}
 # By year
@@ -308,6 +310,11 @@ outbreak_month %>%
 
 ```
 
+The first plot above shows the Foodborne illnesses changed by month. We can clearly see that the foodborn illnesses outbreks happened during the months March to June, and November to December.  
+
+The second plot shows the foodborne illnesses changed by year. We noticed that the general trend of foodborne illnesses has been dereasing from the year 1998 to 2009, but it starts to have constant values from 2010 to 2015 which means there is no such significant increase in illness outbreaks during that 6 years. We noticed that in late 2003 and 2006 the illnesses tended to be maximized which could indicate the foodborn outbreaks events happened in that 2 years: hepatitis outbreak in late 2003 from Chi-Chi's restaurant and over people suffered from the lettuce and organic spinach during 2006 by Taco Bell and Natural Selection Foods.
+
+
 #### Time series plot of illnesses caused by top4 species
 ```{r}
 outbreak %>% filter(Species %in% c(
@@ -321,6 +328,9 @@ outbreak %>% filter(Species %in% c(
   ggplot(aes(x=Year, y=Illnesses, lty=Species, col=Species)) + 
   geom_line()
 ```
+
+The above plot shows the time series plot of illnesses caused by top4 species. We can clearly see that the Norovirus genogroup I had the largest number of foodborne illnesses outbreaks from 1998 to 2009. After 2009, Salmonella enterica and Norovirus genogroup II have nearly same number of illnesses. But generally speaking, Norovirus causes the highest number of foodborne illnesses outbreaks from 1998 to 2015.
+
 
 ## Model Building
 
